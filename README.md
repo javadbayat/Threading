@@ -149,3 +149,12 @@ instead of
     </t:thread>
 
 This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *thread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
+
+## Exitting from a thread
+Sometimes you need to exit from a thread and make it avoid executing the rest of its code; like the Win32 `ExitThread` function does in C++. Then you're welcome to use the following command in the thread code:
+
+    WScript.Quit();
+
+You can also pass an exit code to the Quit method, as follows:
+
+    WScript.Quit(100);
