@@ -107,3 +107,45 @@ Now we want to extend our previous example by letting the user select their desi
     </form>
     </body>
     </html>
+
+## Scope of variables and functions
+Please note that the variables defined within the thread template, and also the pre-defined `tparam` variable are all local to the threads of the template. As with our File Mover example, the usual script can't access the `fso` variable that is defined within the thread template. The same applies to functions.
+
+However, the code in the thread template can access all of the global variables defined in the usual script, provided that it prepends `window.` to the variable name. For example, imagine the `fileMoverThread` element contained the code below:
+
+    <t:thread id="fileMoverThread">
+    window.alert("The thread identifier is " + tmid);
+    ...
+
+Then the thread would generate a run-time error, because there is no `tmid` variable defined in the template. But if the code were
+
+    <t:thread id="fileMoverThread">
+    window.alert("The thread identifier is " + window.tmid);
+    ...
+
+then the thread would look for the `tmid` variable in the usual script of the HTA; and it would find its main identifier and display it.
+
+In addition, in thread templates, you must not omit the name of the window object when calling one of its methods or accessing one of its properties. So the following code would also fail:
+
+    <t:thread id="fileMoverThread">
+    alert("The thread identifier is " + window.tmid);
+    ...
+
+## Problem with viewing thread templates in text editors
+One issue with `<t:thread>` elements might be, although they work perfectly, they don't render perfectly in text editors, like Notepad Plus Plus. This is basically because these text editors do not understand the `<t:thread>` element contains JScript code and not plain text; so they don't format and colorize the code properly!
+
+Fortunately, there is a solution: just enclose the code within `<script>` and `</script>` tags. In simpler words, write
+
+    <t:thread id="foo">
+    <script>
+    // The actual code
+    </script>
+    </t:thread>
+
+instead of
+
+    <t:thread id="foo">
+    // The actual code
+    </t:thread>
+
+This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *thread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
