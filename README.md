@@ -30,15 +30,80 @@ After the mix operation, these two composite image files will be approximately i
 Then what is the **Unit size** field in the Settings section? It's hard to explain, but we recommend that you leave it be the default (1). Because the higher its value, the lower the quality of the composite images.
 
 # thread.htc Component
-**thread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file, and as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
+**thread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
-To use the component in an HTA, the first step is to declare an XML namespace named 't', and then import 'thread.htc' into that namespace [(More about this here)](https://docs.microsoft.com/en-us/previous-versions//ms531426(v=vs.85)?redirectedfrom=MSDN).
+To use the component in an HTA, the first step is to declare an XML namespace named 't', and then import 'thread.htc' into that namespace [(See 'Importing a Custom Element' section in 'About Element Behaviors')](https://docs.microsoft.com/en-us/previous-versions//ms531426(v=vs.85)?redirectedfrom=MSDN).
 
-Then you must define one or more thread templates, which contain the JScript code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another:
+Then you must define one or more thread templates, which contain the JScript code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
 
     <t:thread id="fileMoverThread">
     var fso = new ActiveXObject("Scripting.FileSystemObject");
     fso.MoveFile("C:\\movie.mp4", "D:\\movie.mp4");
+    window.document.body.innerText = "The file movie.mp4 has been moved to drive D.";
     </t:thread>
 
-## To be continued...
+**Note:** The id assigned to the `<t:thread>` element (in this example, `fileMoverThread`) is called the *Thread Template Identifier (TTID)* of the potential threads.
+
+**Note:** Currently, thread templates only support **JScript code**, not code in other languages such as VBScript or PerlScript.
+
+Now, the next step is to create a thread from the thread template, which causes the code within our `fileMoverThread` to start running concurrently with the usual scripts in the HTA. To do so, just call the `start` method of the `<t:thread>` element via a usual script. For example, the following code snippet displays a button that - when clicked - creates a thread to move the video file.
+
+    <script language="jscript">
+    var tmid;
+    function moveFileByThread() {
+        tmid = fileMoverThread.start();
+    }
+    </script>
+    ...
+    <button onclick="moveFileByThread()">Move video file</button>
+
+As you see in the code, the `start` method returns a value that is assigned to the `tmid` variable. This value is called **Thread Main Identifier (TMID)**, which is a numeric value that uniquely identifies the thread among all the threads that are created from the template. It can be used in subsequent calls to methods such as `terminate`, `getExitCode`, .etc to terminate the thread, retrieve its exit code, .etc. It contrasts to the previously-mentioned TTID, which was used to identify the `<t:thread>` element (the thread template) throughout the HTML document.
+
+## Passing a parameter to a thread
+What's interesting is that you can pass any desired value (like a number, a string, an object, .etc) to the `start` method. Then this value can be accessed by the thread through a special variable named `tparam`. For example, the following code snippet defines a template for a thread that deletes a file.
+
+    <t:thread id="deleterThread">
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    fso.DeleteFile(tparam);
+    </t:thread>
+
+The pre-defined variable `tparam` is passed to the `DeleteFile` method. Here, the presence of `tparam` indicates that we don't directly specify the path of the file that should be deleted. Instead, when we create the thread, we send it the path of the file; like below:
+
+    var tmid = deleterThread.start("C:\\Users\\Bob\\Desktop\\note.txt");
+
+Now we want to extend our previous example by letting the user select their desired source and destination file names to move - via a form. Here is the full source code:
+
+    <html xmlns:t>
+    <head>
+    <title>Move files</title>
+    <?import namespace="t" implementation="thread.htc" ?>
+
+    <t:thread id="fileMoverThread">
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    fso.MoveFile(tparam.source, tparam.dest);
+    window.document.all.moveButton.innerText = "Move";
+    </t:thread>
+
+    <script language="jscript">
+    var tmid;
+
+    function moveFileByThread() {
+        tmid = fileMoverThread.start({
+            source: document.all.fileSource.value,
+            dest: document.all.txtDest.value
+        });
+        
+        document.all.moveButton.innerText = "Moving...";
+    }
+    </script>
+    </head>
+    <body>
+    <form>
+    <label for="fileSource">Source file:</label>
+    <input type="file" id="fileSource"><br>
+    <label for="txtDest">Destination file:</label>
+    <input type="text" id="txtDest"><br>
+    <button id="moveButton" onclick="moveFileByThread()">Move</button>
+    </form>
+    </body>
+    </html>
