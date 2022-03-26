@@ -46,7 +46,7 @@ Then you must define one or more thread templates, which contain the JScript cod
 
 **Note:** Currently, thread templates only support **JScript code**, not code in other languages such as VBScript or PerlScript.
 
-Now, the next step is to create a thread from the thread template, which causes the code within our `fileMoverThread` to start running concurrently with the usual scripts in the HTA. To do so, just call the `start` method of the `<t:thread>` element via a usual script. For example, the following code snippet displays a button that - when clicked - creates a thread to move the video file.
+Now, the next step is to create a thread from the thread template, which causes the code within our `fileMoverThread` to start running. To do so, just call the `start` method of the `<t:thread>` element via a usual script. For example, the following code snippet displays a button that - when clicked - creates a thread to move the video file.
 
     <script language="jscript">
     var tmid;
