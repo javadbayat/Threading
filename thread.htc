@@ -1,0 +1,141 @@
+<public:component tagName="thread" literalContent=true>
+    <public:method name="start" />
+    <public:method name="terminate" />
+    <public:method name="wait" />
+    <public:method name="getExitCode" />
+    <public:method name="resume" />
+    
+    <public:attach event="ondocumentready" for="element" onevent="initWBC()" />
+    <public:attach event="oncontentready" for="element" onevent="initElem()" />
+    <public:attach event="onunload" for="window" onevent="cleanUpThreads()" />
+</public:component>
+<script language="jscript">
+String.prototype.startsWith = new Function("str", "return(this.substr(0,str.length) === str);");
+String.prototype.endsWith = new Function("suffix", "return(this.substr(this.length - suffix.length) === suffix);");
+
+var threadsInfo = new ActiveXObject("Scripting.Dictionary");
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+var wshShell = new ActiveXObject("WScript.Shell");
+var wbc;
+var appid = Math.round(Math.random() * 0xFFFFFF);
+var baseTMID = 1;
+
+var TF_SUSPENDED        = 1;
+
+function getCompFolder()
+{
+    return document.URL.substring(7, document.URL.lastIndexOf("\\") + 1);
+}
+
+function initWBC()
+{
+    var doc = element.document;
+    wbc = doc.getElementById("threadingPort");
+    if (!wbc)
+    {
+        wbc = doc.createElement("object");
+        wbc.id = "threadingPort";
+        wbc.classid = "clsid:8856F961-340A-11D0-A96B-00C04FD705A2";
+        wbc.width = wbc.height = 1;
+        doc.body.appendChild(wbc);
+    }
+    
+    wbc.PutProperty("app" + appid, threadsInfo);
+}
+
+function initElem()
+{
+    if (element.src)
+    {
+        var ts = fso.OpenTextFile(getCompFolder() + element.src);
+        element.innerHTML = ts.ReadAll();
+        ts.Close();
+    }
+    else
+    {
+        var code = element.innerHTML.toLowerCase().replace(/\s/g, "");
+        if (code.startsWith("<" + "script>") && code.endsWith("</" + "script>"))
+            element.innerHTML = element.innerHTML.replace("<" + "script>", "").replace("</" + "script>", "");
+    }
+}
+
+function start(arg, initiallySuspended)
+{
+    wbc.RegisterAsBrowser = true;
+    
+    var tmid = baseTMID++;
+    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null};
+    
+    if (initiallySuspended)
+        threadsInfo(tmid).flags |= TF_SUSPENDED;
+    
+    var hostPath = getCompFolder() + "thread_host.js";
+    threadsInfo(tmid).exec = wshShell.Exec('wscript "' + hostPath + '" ' + appid + " " + tmid);
+    
+    return tmid;
+}
+
+function terminate(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+    {
+        threadsInfo(tmid).exec.Terminate();
+        threadsInfo.Remove(tmid);
+    }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function wait(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+    {
+        threadsInfo(tmid).exec.StdOut.ReadAll();
+        var ec = threadsInfo(tmid).exec.ExitCode;
+        threadsInfo.Remove(tmid);
+        return ec;
+    }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function getExitCode(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+    {
+        if (threadsInfo(tmid).exec.Status)
+            return threadsInfo(tmid).exec.ExitCode;
+        
+        return 259;
+    }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function resume(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+    {
+        if (threadsInfo(tmid).flags & TF_SUSPENDED)
+            threadsInfo(tmid).flags -= TF_SUSPENDED;
+        else
+            throw new Error("Thread is already running");
+    }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function cleanUpThreads()
+{
+    var arr = (new VBArray(threadsInfo.Items())).toArray();
+    for (var i = 0;i < arr.length;i++)
+    {
+        try
+        {
+            arr[i].exec.Terminate();
+        }
+        catch (e) {}
+    }
+}
+</script>
+<body></body>

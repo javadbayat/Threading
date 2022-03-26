@@ -1,0 +1,462 @@
+<html xmlns:t xmlns:fcontrol>
+<head>
+    <title>Example</title>
+    <hta:application windowstate="maximize" scroll="no" />
+    <?import namespace="t" implementation="thread.htc" ?>
+    <?import namespace="fcontrol" implementation="intbox.htc" ?>
+    <style type="text/css">
+        .appLayer {
+            border: 1px dashed red;
+            overflow: scroll;
+            width: 100%;
+            height: 80%;
+            padding: 4px;
+        }
+        
+        #searchResults {
+            height: 300px;
+            overflow: scroll;
+            border: 1px solid green;
+            background-color:#ffffcc;
+        }
+        
+        #nResults, #nUnitsProcessed {color:red;}
+        
+        #mixStatusText {font-size:large;}
+        
+        #btnMix {margin-top: 4px;}
+        
+        #btnBrowse {
+            position: relative;
+            top: -15px;
+            left: 15px;
+        }
+    </style>
+    <script language="jscript">
+        var currentLayer = null;
+        var arrSearchResults = [];
+        var searchTMID = 0, readerTMID = 0;
+        var mixTMID = 0;
+        var mixStage = 0;
+        var fso = new ActiveXObject("Scripting.FileSystemObject");
+        var shell = new ActiveXObject("Shell.Application");
+        var wshShell = new ActiveXObject("WScript.Shell");
+        var abortionRequest = false;
+        var ln = 0;
+
+        onload = function() {
+            search_layer.tabbtn = appTabs.children[0];
+            mixImages_layer.tabbtn = appTabs.children[1];
+            goToLayer("search_layer");
+            
+            var desktopFolder = wshShell.SpecialFolders(0);
+            document.mixData.outputImage1.value = generateBitmapFileName(desktopFolder);
+            document.mixData.outputImage2.value = generateBitmapFileName(desktopFolder);
+        };
+
+        function goToLayer(lid) {
+            if (currentLayer) {
+                currentLayer.style.display = "none";
+                currentLayer.tabbtn.disabled = false;
+            }
+
+            currentLayer = document.all[lid];
+            currentLayer.style.display = "";
+            currentLayer.tabbtn.disabled = true;
+        }
+
+        function clearSearchResults() {
+            arrSearchResults = [];
+            searchResults.innerHTML = nResults.innerHTML = "";
+        }
+
+        function startSearch() {
+            var arg = {
+                fileName: document.searchData.fileName.value,
+                searchIn: document.searchData.searchIn.value
+            };
+
+            if ((!arg.fileName) || (!arg.searchIn)) {
+                alert("Either file name or location field is empty.");
+                return;
+            }
+
+            searchTMID = searchThread.start(arg);
+
+            document.searchData.btnClear.click();
+            document.searchData.searchIn.disabled = document.searchData.fileName.disabled = true;
+            document.searchData.btnSearch.style.display = "none";
+            document.searchData.btnStop.style.display = "";
+            document.images.progbar.style.display = "";
+        }
+
+        function handleResult(res) {
+            arrSearchResults.push(res);
+            var p = document.createElement("p");
+            p.style.cursor = "hand";
+            p.innerText = res;
+            p.onclick = function () {
+                var fldPath = fso.GetParentFolderName(this.innerText);
+                shell.Open(fldPath);
+            }
+            searchResults.appendChild(p);
+            
+            nResults.innerText = arrSearchResults.length + " files found";
+        }
+
+        function searchCompleted() {
+            document.searchData.searchIn.disabled = document.searchData.fileName.disabled = false;
+            document.searchData.btnStop.style.display = "none";
+            document.images.progbar.style.display = "none";
+            document.searchData.btnSearch.style.display = "";
+        }
+
+        function stopSearch() {
+            searchThread.terminate(searchTMID);
+            searchCompleted();
+        }
+
+        function readResults() {
+            if (readerTMID) {
+                resultReader.terminate(readerTMID);
+                readerTMID = 0;
+            }
+            else
+                readerTMID = resultReader.start(searchResults.innerText);
+        }
+        
+        function startMixingImages() {
+            var arg = {
+                inputImageFiles: [
+                    document.all.fileInputImage1.value,
+                    document.all.fileInputImage2.value
+                ],
+                outputImageFiles: [
+                    document.all.txtOutputImage1.value,
+                    document.all.txtOutputImage2.value
+                ],
+                unitSize: intUnitSize.value
+            };
+            
+            if ((!fso.FileExists(arg.inputImageFiles[0])) || (!fso.FileExists(arg.inputImageFiles[1]))) {
+                alert("One of the specified input image files does not exist.");
+                return;
+            }
+            
+            if ((!arg.outputImageFiles[0]) || (!arg.outputImageFiles[1])) {
+                alert("One of output image file fields is empty.");
+                return;
+            }
+            
+            if (fso.FileExists(arg.outputImageFiles[0])) {
+                if (confirm("The file '" + (arg.outputImageFiles[0]) + "' already exists. Do you want to replace it?"))
+                    fso.DeleteFile(arg.outputImageFiles[0]);
+                else
+                    return;
+            }
+            
+            if (fso.FileExists(arg.outputImageFiles[1])) {
+                if (confirm("The file '" + (arg.outputImageFiles[1]) + "' already exists. Do you want to replace it?"))
+                    fso.DeleteFile(arg.outputImageFiles[1]);
+                else
+                    return;
+            }
+            
+            mixTMID = mixThread.start(arg);
+            
+            document.all.btnMix.style.display = "none";
+            operationStatus.style.display = "";
+        }
+        
+        function indicateStage(nStage, progBarMax) {
+            switch (mixStage = nStage) {
+            case 1 :
+                mixStatusText.innerText = "Stage 1/4: Loading and transforming images...";
+                break;
+            case 2 :
+                mixStatusText.innerText = "Stage 2/4: Initializing output image vectors...";
+                mixProgBar.style.display = "";
+                mixProgBar.Max = progBarMax;
+                mixProgBar.Value = 0;
+                progPercent.style.display = "";
+                progPercent.innerText = "0%";
+                break;
+            case 3 :
+                mixStatusText.innerText = "Stage 3/4: Mixing images...";
+                mixProgBar.Max = progBarMax;
+                mixProgBar.Value = 0;
+                progPercent.innerText = "0%";
+                nUnitsProcessed.parentNode.style.display = "";
+                nUnitsProcessed.innerText = 0;
+                break;
+            case 4 :
+                mixStatusText.innerText = "Stage 4/4: Building output image files...";
+                mixProgBar.style.display = "none";
+                progPercent.style.display = "none";
+                nUnitsProcessed.parentNode.style.display = "none";
+                btnAbort.disabled = true;
+                break;
+            case 0 :
+                mixStatusText.innerText = "";
+                btnAbort.disabled = false;
+                operationStatus.style.display = "none";
+                document.all.btnMix.style.display = "";
+                
+                wshShell.Popup("The images were successfully mixed!", 0, "Mix images", 64)
+                break;
+            }
+            
+            return abortionRequest;
+        }
+        
+        function indicateProgress(i, nup) {
+            mixProgBar.Value = i;
+            var percent = i / mixProgBar.Max * 100;
+            progPercent.innerText = Math.floor(percent) + "%";
+            
+            if (mixStage == 3)
+                nUnitsProcessed.innerText = nup;
+        }
+    
+        function openParentFolder(txtbox) {
+            var fldPath = fso.GetParentFolderName(txtbox.value);
+            shell.Open(fldPath);
+        }
+        
+        function abortMix() {
+            abortionRequest = true;
+            btnAbort.disabled = true;
+        }
+        
+        function indicateAbortion() {
+            abortionRequest = false;
+            btnAbort.disabled = false;
+            
+            mixStatusText.innerText = "";
+            mixProgBar.style.display = "none";
+            progPercent.style.display = "none";
+            nUnitsProcessed.parentNode.style.display = "none";
+            
+            operationStatus.style.display = "none";
+            document.all.btnMix.style.display = "";            
+        }
+        
+        function generateBitmapFileName(directoryPath) {
+            while (true) {
+                ln++;
+                
+                var fn = fso.BuildPath(directoryPath, ln + ".bmp");
+                if (!fso.FileExists(fn))
+                    return fn;
+            }
+        }
+        
+        function browseForOutputImages() {
+            var folder = shell.BrowseForFolder(0, "Please select the folder where you want to save the output image files.", 0x2 | 0x1);
+            if (!folder)
+                return;
+            
+            ln = 0;
+            document.mixData.outputImage1.value = generateBitmapFileName(folder.Self.Path);
+            document.mixData.outputImage2.value = generateBitmapFileName(folder.Self.Path);
+        }
+    </script>
+    <t:thread id="searchThread" src="search.js"></t:thread>
+    <t:thread id="resultReader">
+    <script>
+        var voice = new ActiveXObject("SAPI.SpVoice");
+        voice.Rate = 0;
+        voice.Speak(tparam);
+    </script>
+    </t:thread>
+    
+    <t:thread id="mixThread">
+    <script>
+    var EC_OPERATION_ABORTED = 1;
+    
+    var ar = window.indicateStage(1);
+    if (ar) {
+        window.indicateAbortion();
+        WScript.Quit(EC_OPERATION_ABORTED);
+    }
+    
+    var if1 = new ActiveXObject("WIA.ImageFile");
+    var if2 = new ActiveXObject("WIA.ImageFile");
+    
+    if1.LoadFile(tparam.inputImageFiles[0]);
+    if2.LoadFile(tparam.inputImageFiles[1]);
+    
+    if ((if1.Width != if2.Width) || (if1.Height != if2.Height)) {
+        var ip = new ActiveXObject("WIA.ImageProcess");
+        ip.Filters.Add(ip.FilterInfos("Scale").FilterID);
+        ip.Filters(1).Properties("PreserveAspectRatio") = false;
+        ip.Filters(1).Properties("MaximumWidth") = if1.Width;
+        ip.Filters(1).Properties("MaximumHeight") = if1.Height;
+        if2 = ip.Apply(if2);
+    }
+    
+    var width = if1.Width, height = if1.Height;
+    var nPixels = width * height;
+    var ar = window.indicateStage(2, nPixels);
+    if (ar) {
+        window.indicateAbortion();
+        WScript.Quit(EC_OPERATION_ABORTED);
+    }
+    
+    var currentProgress = 0;
+    
+    var outputVector1 = new ActiveXObject("WIA.Vector");
+    var outputVector2 = new ActiveXObject("WIA.Vector");
+    
+    for (var i = 1;i <= nPixels;i++) {
+        outputVector1.Add(0);
+        outputVector2.Add(0);
+        
+        s2_interactWithUI();
+    }
+    
+    var us = tparam.unitSize;
+    var tx, ty = true;
+    var inputVector1 = if1.ARGBData, inputVector2 = if2.ARGBData;
+    var ar = window.indicateStage(3, nPixels * 2);
+    if (ar) {
+        window.indicateAbortion();
+        WScript.Quit(EC_OPERATION_ABORTED);
+    }
+    
+    var nup = 0, npp = 0;
+    currentProgress = 0;
+    
+    for (var y = 0;y < height;y += us) {
+        tx = ty;
+        
+        for (var x = 0;x < width;x += us) {
+            processUnit(tx ? inputVector1 : inputVector2, outputVector1);
+            processUnit(tx ? inputVector2 : inputVector1, outputVector2);
+            nup++;
+            tx = !tx;
+        }
+        
+        ty = !ty;
+    }
+    
+    var ar = window.indicateStage(4);
+    if (ar) {
+        window.indicateAbortion();
+        WScript.Quit(EC_OPERATION_ABORTED);
+    }
+    
+    var oif1 = outputVector1.ImageFile(width, height);
+    var oif2 = outputVector2.ImageFile(width, height);
+        
+    oif1.SaveFile(tparam.outputImageFiles[0]);
+    oif2.SaveFile(tparam.outputImageFiles[1]);
+    
+    window.indicateStage(0);
+    
+    function s2_interactWithUI() {
+        var progress = Math.floor(i / nPixels * 100);
+        if (progress > currentProgress) {
+            currentProgress = progress;
+            window.indicateProgress(i);
+            
+            if (window.abortionRequest) {
+                window.indicateAbortion();
+                WScript.Quit(EC_OPERATION_ABORTED);
+            }
+        }
+    }
+    
+    function copyPixel(x, y, s, d) {
+        x++;
+        y++;
+        
+        if ((x > width) || (x < 1) || (y > height) || (y < 1))
+            return;
+        
+        var i = x + (y - 1) * width;
+        d(i) = s(i);
+        
+        npp++;
+        s3_interactWithUI();
+    }
+    
+    function processUnit(s, d) {
+        for (var i = 0;i < us;i++) {
+            for (var j = 0;j < us;j++)
+                copyPixel(x + j, y + i, s, d);
+        }
+    }
+    
+    function s3_interactWithUI() {
+        var progress = Math.floor(npp / nPixels * 50);
+        if (progress > currentProgress) {
+            currentProgress = progress;
+            window.indicateProgress(npp, nup);
+            
+            if (window.abortionRequest) {
+                window.indicateAbortion();
+                WScript.Quit(EC_OPERATION_ABORTED);
+            }
+        }
+    }
+    </script>
+    </t:thread>
+</head>
+<body>
+    <div id="appTabs">
+        <button onclick="goToLayer('search_layer')">Search</button>
+        <button onclick="goToLayer('mixImages_layer')">Mix images</button>
+    </div>
+    <div class="appLayer" id="search_layer" style="display: none;">
+        <form name="searchData" onsubmit="return false;">
+            <label for="searchIn">Location:</label>
+            <input type="text" id="searchIn" name="searchIn" size="32"><br>
+            <label for="fileName">File name:</label>
+            <input type="text" id="fileName" name="fileName" size="32"><br>
+            <button name="btnSearch" onclick="startSearch()">Search</button>
+            <button name="btnStop" onclick="stopSearch()" style="display: none;">Stop</button>
+            <button name="btnClear" onclick="clearSearchResults()">Clear Results</button>
+            <button name="btnRead" onclick="readResults()">Read Results</button>
+        </form>
+        <img name="progbar" src="progbar.gif" width="40%" height="20" style="display: none;">
+        <p id="nResults"></p>
+        <div id="searchResults">
+        </div>
+    </div>
+    <div class="appLayer" id="mixImages_layer" style="display: none;">
+        <form name="mixData" onsubmit="return false;">
+            <fieldset>
+                <legend>Input</legend>
+                <label for="fileInputImage1">Image 1:</label>
+                <input type="file" name="inputImage1" id="fileInputImage1"><br>
+                <label for="fileInputImage2">Image 2:</label>
+                <input type="file" name="inputImage2" id="fileInputImage2">
+            </fieldset>
+            <fieldset>
+                <legend>Settings</legend>
+                Unit Size:
+                <fcontrol:intbox name="unitSize" id="intUnitSize" min="1" />
+            </fieldset>
+            <fieldset>
+                <legend>Output</legend>
+                <label for="txtOutputImage1">Image 1:</label>
+                <input type="text" name="outputImage1" id="txtOutputImage1">
+                <button onclick="openParentFolder(this.form.outputImage1)">Open folder</button><br>
+                <label for="txtOutputImage2">Image 2:</label>
+                <input type="text" name="outputImage2" id="txtOutputImage2">
+                <button onclick="openParentFolder(this.form.outputImage2)">Open folder</button>
+                <button id="btnBrowse" onclick="browseForOutputImages()">Browse...</button>
+            </fieldset>
+            <button id="btnMix" onclick="startMixingImages()">Mix!</button>
+        </form>
+        <div id="operationStatus" style="display:none;">
+            <h1 id="mixStatusText"></h1>
+            <object id="mixProgBar" classid="clsid:35053A22-8589-11D1-B16A-00C0F0283628" style="width:100%;display:none;"></object><br>
+            <center id="progPercent" style="display:none;"></center>
+            <p style="display:none;">Number of units processed: <span id="nUnitsProcessed"></span></p>
+            <button id="btnAbort" onclick="abortMix()">Abort</button>
+        </div>
+    </div>
+</body>
+</html>

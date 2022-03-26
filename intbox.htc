@@ -1,0 +1,362 @@
+<xml:namespace ns="urn:schemas-microsoft-com:vml" prefix="v" />
+<head>
+<public:component tagname="intbox">
+    <public:defaults viewlinkcontent />
+    
+    <public:property name="name" get="get_name" put="put_name" id="propName" />
+    <public:property name="value" get="get_value" put="put_value" id="propValue" />
+    <public:property name="min" get="get_min" put="put_min" id="propMin" />
+    <public:property name="max" get="get_max" put="put_max" id="propMax" />
+    <public:property name="step" get="get_step" put="put_step" id="propStep" />
+    <public:property name="cdisabled" get="get_disabled" put="put_disabled" id="propDisabled" />
+    <public:property name="size" get="get_size" put="put_size" id="propSize" />
+    
+    <public:method name="incrementValue" />
+    <public:method name="decrementValue" />
+    <public:method name="focus" internalname="focusControl" />
+    <public:method name="blur" internalname="blurControl" />
+    <public:method name="select" internalname="selectControl" />
+    
+    <public:attach event="oncontentready" for="element" onevent="initComponent()" />
+</public:component>
+<script language="jscript">
+var ibValue = 0;
+var ibMin = -Infinity;
+var ibMax = Infinity;
+var ibStep = 1;
+var ibDisabled = false;
+var ibError = false;
+
+var keyArrowUp = 38, keyArrowDown = 40;
+var mouseLeftButton = 1;
+
+function initComponent() {
+    // Remove the space character after the text field.
+    intBox.nextSibling.removeNode();
+    
+    // Set event handlers
+    intBox.onchange = validateInt;
+    intBox.onkeydown = handleKey;
+    
+    btnIncrement.onmouseover = btnIncrement.onmouseout = changeButtonColor;
+    btnDecrement.onmouseover = btnDecrement.onmouseout = changeButtonColor;
+    
+    btnIncrement.onmousedown = incrementWithButton;
+    btnIncrement.onmouseup = clearErrorState;
+    btnDecrement.onmousedown = decrementWithButton;
+    btnDecrement.onmouseup = clearErrorState;
+    
+    if (!ibDisabled) {
+        btnIncrement.ondblclick = incrementValue;
+        btnDecrement.ondblclick = decrementValue;
+    }
+}
+
+function get_name() {
+    return intBox.name;
+}
+
+function put_name(val) {
+    intBox.name = val;
+    propName.fireChange();
+}
+
+function get_value() {
+    return ibValue;
+}
+
+function put_value(val) {
+    var i = parseInt(val);
+    if (isNaN(i))
+        throw new Error("The value for the intbox control is not a valid integer.");
+    
+    if ((i < ibMin) || (i > ibMax))
+        throw new Error("The value for the intbox control is not within the range specified by the min and max properties.");
+    
+    if (i % ibStep) {
+        if ((i != ibMin) && (i != ibMax))
+            throw new Error("The value for the intbox control is not a multiple of the step property.");
+    }
+    
+    intBox.value = ibValue = i;
+    propValue.fireChange();
+}
+
+function validateInt() {
+    var i = parseInt(intBox.value);
+    if (isNaN(i)) {
+        revertToLastValue();
+        return;
+    }
+    
+    if ((i < ibMin) || (i > ibMax)) {
+        revertToLastValue();
+        return;
+    }
+    
+    if (i % ibStep) {
+        if ((i != ibMin) && (i != ibMax)) {
+            revertToLastValue();
+            return;
+        }
+    }
+    
+    ibValue = i;
+    propValue.fireChange();
+    
+    function revertToLastValue() {
+        this.value = ibValue;
+    }
+}
+
+function get_min() {
+    return ibMin;
+}
+
+function put_min(val) {
+    var i = parseInt(val);
+    if (isNaN(i))
+        throw new Error("Invalid value for the min property.");
+    
+    ibMin = i;
+    propMin.fireChange();
+    
+    if (ibValue < ibMin)
+        element.value = ibMin;
+}
+
+function get_max() {
+    return ibMax;
+}
+
+function put_max(val) {
+    var i = parseInt(val);
+    if (isNaN(i))
+        throw new Error("Invalid value for the max property.");
+
+    ibMax = i;
+    propMax.fireChange();
+    
+    if (ibValue > ibMax)
+        element.value = ibMin;
+}
+
+function get_step() {
+    return ibStep;
+}
+
+function put_step(val) {
+    var i = parseInt(val);
+    if (isNaN(i))
+        throw new Error("Invalid value for the step property.");
+    
+    if (i <= 0)
+        throw new Error("Invalid value for the step property.");
+    
+    ibStep = i;
+    propStep.fireChange();
+    
+    if (ibValue % ibStep)
+        element.value = ibMin;
+}
+
+function focusControl() {
+    intBox.focus();
+}
+
+function blurControl() {
+    intBox.blur();
+}
+
+function selectControl() {
+    intBox.select();
+}
+
+function incrementValue() {
+    if (ibValue == ibMax)
+        return false;
+    
+    var v = ibValue - (ibValue % ibStep) + ibStep;
+    if (v > ibMax)
+        v = ibMax;
+    
+    element.value = v;
+    return true;
+}
+
+function decrementValue() {
+    if (ibValue == ibMin)
+        return false;
+    
+    var v = ibValue - (ibValue % ibStep);
+    if (v == ibValue)
+        v -= ibStep;
+    
+    if (v < ibMin)
+        v = ibMin;
+    
+    element.value = v;
+    return true;
+}
+
+function handleKey() {
+    switch (event.keyCode) {
+    case keyArrowUp :
+        incrementValue();
+        break;
+    case keyArrowDown :
+        decrementValue();
+        break;
+    }
+}
+
+function get_disabled() {
+    return ibDisabled;
+}
+
+function put_disabled(val) {
+    val = String(val).toLowerCase() == "true"; // Convert value to boolean
+    
+    intBox.disabled = ibDisabled = val;
+    if (ibDisabled) {
+        btnIncrement.ondblclick = btnDecrement.ondblclick = null;
+        
+        btnIncrement.lastChild.fillcolor = btnDecrement.lastChild.fillcolor = "#6d6d6d";
+    }
+    else {
+        btnIncrement.ondblclick = incrementValue;
+        btnDecrement.ondblclick = decrementValue;
+        
+        btnIncrement.lastChild.fillcolor = btnDecrement.lastChild.fillcolor = "#5f6ea5";
+    }
+    
+    propDisabled.fireChange();
+}
+
+function get_size() {
+    return intBox.size;
+}
+
+function put_size(val) {
+    intBox.size = val;
+    propSize.fireChange();
+}
+
+function setButtonBGColor(stepButton, bgColor) {
+    stepButton.firstChild.fillcolor = bgColor;
+}
+
+function changeButtonColor() {
+    if (ibDisabled)
+        return;
+    
+    if (event.type == "mouseover")
+        setButtonBGColor(this, "#80ff80");
+    else
+        setButtonBGColor(this, "#f0f0f0");
+}
+
+function incrementWithButton() {
+    if (event.button != mouseLeftButton)
+        return;
+    
+    if (ibDisabled)
+        return;
+    
+    ibError = !incrementValue();
+    if (ibError)
+        intBox.style.backgroundColor = "#ff8080";
+    else
+        intBox.focus();
+}
+
+function decrementWithButton() {
+    if (event.button != mouseLeftButton)
+        return;
+    
+    if (ibDisabled)
+        return;
+    
+    ibError = !decrementValue();
+    if (ibError)
+        intBox.style.backgroundColor = "#ff8080";
+    else
+        intBox.focus();
+}
+
+function clearErrorState() {
+    if (event.button != mouseLeftButton)
+        return;
+    
+    if (ibError) {
+        intBox.style.removeAttribute("backgroundColor");
+        ibError = false;
+    }
+}
+</script>
+<style type="text/css">
+v\:* {
+    behavior: url(#default#VML);
+    display: inline-block;
+}
+
+#intbox {
+    height: 25px;
+    margin-right: 0px;
+    vertical-align: middle;
+    text-align: center;
+}
+
+#stepButtons {
+    margin-left: 0px;
+    width: 25px;
+    height: 25px;
+    vertical-align: middle;
+}
+
+#stepButtons * {
+    position: absolute;
+}
+
+#btnIncrement {
+    width: 10;
+    height: 5;
+    left: 0;
+    top: 0;
+}
+
+#btnDecrement {
+    width: 10;
+    height: 5;
+    left: 0;
+    top: 5;
+}
+
+#stepButtons v\:group v\:rect {
+    left: 0;
+    top: 0;
+    width: 10;
+    height: 5;
+}
+
+#stepButtons v\:group v\:shape {
+    width: 5;
+    height: 3;
+    left: 3;
+    top: 1;
+}
+</style>
+</head>
+<body>
+<input type="text" id="intBox" value="0" size="3">
+<v:group id="stepButtons" coordsize="10, 10">
+    <v:group id="btnIncrement" coordsize="10, 5">
+        <v:rect fillcolor="#f0f0f0" />
+        <v:shape coordsize="2, 1" path="m 0,1 l 1,0, 2,1 x e" stroked="false" fillcolor="#5f6ea5" />
+    </v:group>
+    <v:group id="btnDecrement" coordsize="10, 5">
+        <v:rect fillcolor="#f0f0f0" />
+        <v:shape coordsize="2, 1" path="m 0,0 l 1,1, 2,0 x e" stroked="false" fillcolor="#5f6ea5" />
+    </v:group>
+</v:group>
+</body>
