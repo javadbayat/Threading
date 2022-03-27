@@ -17,7 +17,7 @@ var threadsInfo = new ActiveXObject("Scripting.Dictionary");
 var fso = new ActiveXObject("Scripting.FileSystemObject");
 var wshShell = new ActiveXObject("WScript.Shell");
 var wbc;
-var appid = Math.round(Math.random() * 0xFFFFFF);
+var signature = Math.round(Math.random() * 0xFFFFFF);
 var baseTMID = 1;
 
 var TF_SUSPENDED        = 1;
@@ -33,6 +33,17 @@ function initWBC()
     wbc = doc.getElementById("threadingPort");
     if (!wbc)
     {
+        // Taking a look at this part of the code still reminds me of Omegastripes's post
+        // on Stack Overflow, which illustrated how to use WSH VBS to dynamically create an
+        // HTA window, and receive its window object through a Web Browser Control. Here is
+        // its link:
+        // https://stackoverflow.com/questions/47100085/creating-multi-select-list-box-in-vbscript/47111556#47111556
+        // Thanks a lot to his post, I'm using a similar mechanism in this component to
+        // transfer thread data (like the thread template element, the extra parameter,
+        // the thread flags, .etc) from the mshta.exe process (The HTA process) to the
+        // wscript.exe process (the underlying process of the thread) via a dedicated
+        // Web Browser Control (WBC).
+        
         wbc = doc.createElement("object");
         wbc.id = "threadingPort";
         wbc.classid = "clsid:8856F961-340A-11D0-A96B-00C04FD705A2";
@@ -40,7 +51,7 @@ function initWBC()
         doc.body.appendChild(wbc);
     }
     
-    wbc.PutProperty("app" + appid, threadsInfo);
+    wbc.PutProperty("app" + signature, threadsInfo);
 }
 
 function initElem()
@@ -70,7 +81,7 @@ function start(arg, initiallySuspended)
         threadsInfo(tmid).flags |= TF_SUSPENDED;
     
     var hostPath = getCompFolder() + "thread_host.js";
-    threadsInfo(tmid).exec = wshShell.Exec('wscript "' + hostPath + '" ' + appid + " " + tmid);
+    threadsInfo(tmid).exec = wshShell.Exec('wscript "' + hostPath + '" ' + signature + " " + tmid);
     
     return tmid;
 }
