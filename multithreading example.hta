@@ -43,6 +43,9 @@
         var wshShell = new ActiveXObject("WScript.Shell");
         var abortionRequest = false;
         var ln = 0;
+        var toPreserveAlphaInfo = 0;
+        
+        var MIF_PRESERVE_ALPHA_CHANNEL = 1;
 
         onload = function() {
             search_layer.tabbtn = appTabs.children[0];
@@ -50,8 +53,23 @@
             goToLayer("search_layer");
             
             var desktopFolder = wshShell.SpecialFolders(0);
-            document.mixData.outputImage1.value = generateBitmapFileName(desktopFolder);
-            document.mixData.outputImage2.value = generateBitmapFileName(desktopFolder);
+            document.mixData.outputImage1.value = generatePNGFileName(desktopFolder);
+            document.mixData.outputImage2.value = generatePNGFileName(desktopFolder);
+        };
+
+        document.onselectstart = document.oncontextmenu = function() {
+            var srcElem = event.srcElement;
+            
+            if ((srcElem.tagName.toLowerCase() == "input") && (srcElem.type.toLowerCase() == "text"))
+                return true;
+            
+            if (srcElem.tagName.toLowerCase() == "textarea")
+                return true;
+            
+            if (srcElem.tagName.toLowerCase() == "intbox")
+                return true;
+            
+            return false;
         };
 
         function goToLayer(lid) {
@@ -135,7 +153,8 @@
                     document.all.txtOutputImage1.value,
                     document.all.txtOutputImage2.value
                 ],
-                unitSize: intUnitSize.value
+                unitSize: intUnitSize.value,
+                flags: 0
             };
             
             if ((!fso.FileExists(arg.inputImageFiles[0])) || (!fso.FileExists(arg.inputImageFiles[1]))) {
@@ -162,6 +181,9 @@
                     return;
             }
             
+            if (document.all.chkPreserveAlpha.checked)
+                arg.flags |= MIF_PRESERVE_ALPHA_CHANNEL;
+            
             mixTMID = mixThread.start(arg);
             
             document.all.btnMix.style.display = "none";
@@ -169,12 +191,18 @@
         }
         
         function indicateStage(nStage, progBarMax) {
+            var includesAlphaStage = false;
+            if (nStage >= 10) {
+                nStage -= 10;
+                includesAlphaStage = true;
+            }
+            
             switch (mixStage = nStage) {
             case 1 :
-                mixStatusText.innerText = "Stage 1/4: Loading and transforming images...";
+                mixStatusText.innerText = stageProgress() + "Loading and transforming images...";
                 break;
             case 2 :
-                mixStatusText.innerText = "Stage 2/4: Initializing output image vectors...";
+                mixStatusText.innerText = stageProgress() + "Initializing output image vectors...";
                 mixProgBar.style.display = "";
                 mixProgBar.Max = progBarMax;
                 mixProgBar.Value = 0;
@@ -182,7 +210,7 @@
                 progPercent.innerText = "0%";
                 break;
             case 3 :
-                mixStatusText.innerText = "Stage 3/4: Mixing images...";
+                mixStatusText.innerText = stageProgress() + "Mixing images...";
                 mixProgBar.Max = progBarMax;
                 mixProgBar.Value = 0;
                 progPercent.innerText = "0%";
@@ -190,11 +218,18 @@
                 nUnitsProcessed.innerText = 0;
                 break;
             case 4 :
-                mixStatusText.innerText = "Stage 4/4: Building output image files...";
-                mixProgBar.style.display = "none";
-                progPercent.style.display = "none";
-                nUnitsProcessed.parentNode.style.display = "none";
-                btnAbort.disabled = true;
+                if (includesAlphaStage) {
+                    mixStatusText.innerText = stageProgress() + "Generating transparency (alpha channel)...";
+                    mixProgBar.Max = progBarMax;
+                    mixProgBar.Value = 0;
+                    progPercent.innerText = "0%";
+                    nUnitsProcessed.parentNode.style.display = "none";
+                }
+                else
+                    buildOutputFilesStage();
+                break;
+            case 5 :
+                buildOutputFilesStage();
                 break;
             case 0 :
                 mixStatusText.innerText = "";
@@ -207,6 +242,18 @@
             }
             
             return abortionRequest;
+            
+            function stageProgress() {
+                return "Stage " + nStage + "/" + (includesAlphaStage ? 5 : 4) + ": ";
+            }
+            
+            function buildOutputFilesStage() {
+                mixStatusText.innerText = stageProgress() + "Building output image files...";
+                mixProgBar.style.display = "none";
+                progPercent.style.display = "none";
+                nUnitsProcessed.parentNode.style.display = "none";
+                btnAbort.disabled = true;
+            }
         }
         
         function indicateProgress(i, nup) {
@@ -241,11 +288,11 @@
             document.all.btnMix.style.display = "";            
         }
         
-        function generateBitmapFileName(directoryPath) {
+        function generatePNGFileName(directoryPath) {
             while (true) {
                 ln++;
                 
-                var fn = fso.BuildPath(directoryPath, ln + ".bmp");
+                var fn = fso.BuildPath(directoryPath, ln + ".png");
                 if (!fso.FileExists(fn))
                     return fn;
             }
@@ -257,8 +304,28 @@
                 return;
             
             ln = 0;
-            document.mixData.outputImage1.value = generateBitmapFileName(folder.Self.Path);
-            document.mixData.outputImage2.value = generateBitmapFileName(folder.Self.Path);
+            document.mixData.outputImage1.value = generatePNGFileName(folder.Self.Path);
+            document.mixData.outputImage2.value = generatePNGFileName(folder.Self.Path);
+        }
+        
+        function displayInfo() {
+            toPreserveAlphaInfo = setTimeout(function() {
+                preserveAlphaInfo.style.visibility = "visible";
+                toPreserveAlphaInfo = 0;
+            }, 150);
+        }
+        
+        function hideInfo() {
+            if (toPreserveAlphaInfo) {
+                clearTimeout(toPreserveAlphaInfo);
+                toPreserveAlphaInfo = 0;
+            }
+            else
+                preserveAlphaInfo.style.visibility = "hidden";
+        }
+        
+        function openLesFerchsPost() {
+            wshShell.Run("https://stackoverflow.com/a/71686905/8492420");
         }
     </script>
     <t:thread id="searchThread" src="search.js"></t:thread>
@@ -273,8 +340,12 @@
     <t:thread id="mixThread">
     <script>
     var EC_OPERATION_ABORTED = 1;
+    var MIF_PRESERVE_ALPHA_CHANNEL = 1;
+    var wiaFormatPNG = "{B96B3CAF-0728-11D3-9D7B-0000F81EF32E}";
     
-    var ar = window.indicateStage(1);
+    var indicateStage = new Function("nStage", "progBarMax", "window.indicateStage((tparam.flags & MIF_PRESERVE_ALPHA_CHANNEL) ? 10 + nStage : nStage, progBarMax);");
+    
+    var ar = indicateStage(1);
     if (ar) {
         window.indicateAbortion();
         WScript.Quit(EC_OPERATION_ABORTED);
@@ -297,7 +368,7 @@
     
     var width = if1.Width, height = if1.Height;
     var nPixels = width * height;
-    var ar = window.indicateStage(2, nPixels);
+    var ar = indicateStage(2, nPixels);
     if (ar) {
         window.indicateAbortion();
         WScript.Quit(EC_OPERATION_ABORTED);
@@ -318,13 +389,15 @@
     var us = tparam.unitSize;
     var tx, ty = true;
     var inputVector1 = if1.ARGBData, inputVector2 = if2.ARGBData;
-    var ar = window.indicateStage(3, nPixels * 2);
+    var copyPixel = (tparam.flags & MIF_PRESERVE_ALPHA_CHANNEL) ? copyPixel_PAC : copyPixel_Simple;
+    var ar = indicateStage(3, nPixels * 2);
     if (ar) {
         window.indicateAbortion();
         WScript.Quit(EC_OPERATION_ABORTED);
     }
     
     var nup = 0, npp = 0;
+    var alphaInfo = [];
     currentProgress = 0;
     
     for (var y = 0;y < height;y += us) {
@@ -340,19 +413,71 @@
         ty = !ty;
     }
     
-    var ar = window.indicateStage(4);
-    if (ar) {
-        window.indicateAbortion();
-        WScript.Quit(EC_OPERATION_ABORTED);
+    if (tparam.flags & MIF_PRESERVE_ALPHA_CHANNEL) {
+        nPixels = alphaInfo.length;
+        currentProgress = 0;
+        var ar = indicateStage(4, nPixels);
+        if (ar) {
+            window.indicateAbortion();
+            WScript.Quit(EC_OPERATION_ABORTED);
+        }
+        
+        var oif1 = outputVector1.ImageFile(width, height);
+        var oif2 = outputVector2.ImageFile(width, height);
+        
+        var alphaVector1 = oif1.ARGBData;
+        var alphaVector2 = oif2.ARGBData;
+        
+        for (var i = 0;i < nPixels;i++) {
+            if (alphaInfo[i].dest === outputVector1)
+                alphaVector1.Item(alphaInfo[i].pixelIndex) = alphaInfo[i].source.Item(alphaInfo[i].pixelIndex);
+            else
+                alphaVector2.Item(alphaInfo[i].pixelIndex) = alphaInfo[i].source.Item(alphaInfo[i].pixelIndex);
+            
+            s4_interactWithUI();
+        }
+        
+        var ar = indicateStage(5);
+        if (ar) {
+            window.indicateAbortion();
+            WScript.Quit(EC_OPERATION_ABORTED);
+        }
+                
+        var ip = new ActiveXObject("WIA.ImageProcess");
+        ip.Filters.Add(ip.FilterInfos("ARGB").FilterID);
+        ip.Filters(1).Properties("ARGBData") = alphaVector1;
+        ip.Filters.Add(ip.FilterInfos("Convert").FilterID);
+        ip.Filters(2).Properties("FormatID") = wiaFormatPNG;
+        
+        oif1 = ip.Apply(oif1);
+        oif1.SaveFile(tparam.outputImageFiles[0]);
+        
+        ip.Filters(1).Properties("ARGBData") = alphaVector2;
+        oif2 = ip.Apply(oif2);
+        oif2.SaveFile(tparam.outputImageFiles[1]);
+    }
+    else {
+        var ar = indicateStage(4);
+        if (ar) {
+            window.indicateAbortion();
+            WScript.Quit(EC_OPERATION_ABORTED);
+        }
+        
+        var oif1 = outputVector1.ImageFile(width, height);
+        var oif2 = outputVector2.ImageFile(width, height);
+            
+        var ip = new ActiveXObject("WIA.ImageProcess");
+        ip.Filters.Add(ip.FilterInfos("Convert").FilterID);
+        ip.Filters(1).Properties("FormatID") = wiaFormatPNG;
+        
+        oif1 = ip.Apply(oif1);
+        oif2 = ip.Apply(oif2);
+        
+        oif1.SaveFile(tparam.outputImageFiles[0]);
+        oif2.SaveFile(tparam.outputImageFiles[1]);
     }
     
-    var oif1 = outputVector1.ImageFile(width, height);
-    var oif2 = outputVector2.ImageFile(width, height);
-        
-    oif1.SaveFile(tparam.outputImageFiles[0]);
-    oif2.SaveFile(tparam.outputImageFiles[1]);
-    
-    window.indicateStage(0);
+    indicateStage(0);
     
     function s2_interactWithUI() {
         var progress = Math.floor(i / nPixels * 100);
@@ -367,7 +492,7 @@
         }
     }
     
-    function copyPixel(x, y, s, d) {
+    function copyPixel_Simple(x, y, s, d) {
         x++;
         y++;
         
@@ -376,6 +501,24 @@
         
         var i = x + (y - 1) * width;
         d(i) = s(i);
+        
+        npp++;
+        s3_interactWithUI();
+    }
+    
+    function copyPixel_PAC(x, y, s, d) {
+        x++;
+        y++;
+        
+        if ((x > width) || (x < 1) || (y > height) || (y < 1))
+            return;
+        
+        var i = x + (y - 1) * width;
+        d(i) = s(i);
+        
+        var alpha = (s(i) >> 24) & 0xff;
+        if (alpha != 255)
+            alphaInfo.push({pixelIndex: i, source: s, dest: d});
         
         npp++;
         s3_interactWithUI();
@@ -393,6 +536,19 @@
         if (progress > currentProgress) {
             currentProgress = progress;
             window.indicateProgress(npp, nup);
+            
+            if (window.abortionRequest) {
+                window.indicateAbortion();
+                WScript.Quit(EC_OPERATION_ABORTED);
+            }
+        }
+    }
+    
+    function s4_interactWithUI() {
+        var progress = Math.floor(i / nPixels * 100);
+        if (progress > currentProgress) {
+            currentProgress = progress;
+            window.indicateProgress(i);
             
             if (window.abortionRequest) {
                 window.indicateAbortion();
@@ -436,7 +592,13 @@
             <fieldset>
                 <legend>Settings</legend>
                 Unit Size:
-                <fcontrol:intbox name="unitSize" id="intUnitSize" min="1" />
+                <fcontrol:intbox name="unitSize" id="intUnitSize" min="1" /><br>
+                <input type="checkbox" name="preserveAlpha" id="chkPreserveAlpha">
+                <label for="chkPreserveAlpha">Preserve image transparency</label>
+                <img src="info.gif" align="middle" onmouseover="displayInfo()" onmouseout="hideInfo()" onclick="openLesFerchsPost()" style="cursor: hand;">
+                <div id="preserveAlphaInfo" style="visibility: hidden;">
+                    <p style="font: message-box; margin: 5px;">Thanks to <a href="https://stackoverflow.com/users/15764378/lesferch">LesFerch</a> for helping us implement the <b>"Preserve transparency"</b> option in this app. Click on the info icon to visit his post on Stack Overflow.</p>
+                </div>
             </fieldset>
             <fieldset>
                 <legend>Output</legend>
