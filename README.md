@@ -164,8 +164,8 @@ You can also pass an exit code to the Quit method, as follows:
     WScript.Quit(100);
 
 ## Threading Port
-Unfortunately, apps that use `thread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Threading Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, an error message similar to the following picture pops up:
+Unfortunately, apps that use `thread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Threading Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, whenever the app attempts to create a new thread, an error message similar to the following picture pops up:
 
 ![threading port closed](https://user-images.githubusercontent.com/31417320/161370903-fcbd1be5-352d-4625-90f0-a08741b6f887.png)
 
-Moreover, the `thread.htc` component appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
+Moreover, the `thread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
