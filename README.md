@@ -14,6 +14,8 @@ The results of the search will be displayed in the light-yellow box below the bu
 Clicking **Read Results** button will make the app create a thread to read the search results aloud via the system's text-to-speech engine. After clicking it, you can stop the playback by clicking it again.
 
 ## Mix Images tab
+**Note:** To use this tab, you need to run the app on **Windows Vista or later**.
+
 In the Mix Images tab, the app takes two images as input and mixes them to produce a couple of composite images each of which contains the input images overlaid with each other. So it's a *magical operation*! Try it to see what it really means.
 
 In the **Input** section, click the **Browse** buttons to select the first and second input image files that are to be mixed.  
@@ -28,6 +30,8 @@ Now start mixing images by clicking the **Mix!** button. Watch the progress bar 
 After the mix operation, these two composite image files will be approximately identical to each other. But wait - do not assume that the second file is useless! You are able to *reconstruct* the original input image files from these composite image files if both of them are present. To do so, you need to start a new mix operation with the app by specifying the same composite images as input images. Then the app will create output images that are identical to the original images!
 
 Then what is the **Unit size** field in the Settings section? It's hard to explain, but we recommend that you leave it be the default (1). Because the higher its value, the lower the quality of the composite images.
+
+If the **Preserve image transparency** option in the Settings section is checked, then if any of the pixels in the input images are transparent, the corresponding pixels in the composite images will be also transparent. Otherwise, the app will generate all the pixels in the composite images with an alpha value of 255, so that the entire composite images will be opaque.
 
 # thread.htc Component
 **thread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
