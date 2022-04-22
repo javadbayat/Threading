@@ -33,12 +33,12 @@ Then what is the **Unit size** field in the Settings section? It's hard to expla
 
 If the **Preserve image transparency** option in the Settings section is checked, then if any of the pixels in the input images are transparent, the corresponding pixels in the composite images will be also transparent. Otherwise, the app will generate all the pixels in the composite images with an alpha value of 255, so that the entire composite images will be opaque.
 
-# thread.htc Component
-**thread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
+# Omegathread.htc Component
+**Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
 To use the component in an HTA, the first step is to declare an XML namespace named 't', and then import 'thread.htc' into that namespace [(See 'Importing a Custom Element' section in 'About Element Behaviors')](https://docs.microsoft.com/en-us/previous-versions//ms531426(v=vs.85)?redirectedfrom=MSDN).
 
-Then you must define one or more thread templates, which contain the JScript code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
+Then you must define one or more thread templates, which contain the script code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
 
     <t:thread id="fileMoverThread">
     var fso = new ActiveXObject("Scripting.FileSystemObject");
@@ -48,7 +48,13 @@ Then you must define one or more thread templates, which contain the JScript cod
 
 **Note:** The id assigned to the `<t:thread>` element (in this example, `fileMoverThread`) is called the *Thread Template Identifier (TTID)* of the potential threads.
 
-**Note:** Currently, thread templates only support **JScript code**, not code in other languages such as VBScript or PerlScript.
+**Note:** In the preceding example, the code within the thread template is written in JScript. If you need to place VBScript code in your thread template, you must specify `vbscript` as the `slanguage` attribute of the `<t:thread>` element. For example, the following is the VBScript equivalent of the `fileMoverThread`:
+
+    <t:thread id="fileMoverThread" slanguage="vbscript">
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    fso.MoveFile "C:\movie.mp4", "D:\movie.mp4"
+    window.document.body.innerText = "The file movie.mp4 has been moved to drive D."
+    </t:thread>
 
 Now, the next step is to create a thread from the thread template, which causes the code within our `fileMoverThread` to start running. To do so, just call the `start` method of the `<t:thread>` element via a usual script. For example, the following code snippet displays a button that - when clicked - creates a thread to move the video file.
 
@@ -136,9 +142,9 @@ In addition, in thread templates, you must not omit the name of the window objec
     ...
 
 ## Problem with viewing thread templates in text editors
-One issue with `<t:thread>` elements might be, although they work perfectly, they don't render perfectly in text editors, like Notepad Plus Plus. This is basically because these text editors do not understand the `<t:thread>` element contains JScript code and not plain text; so they don't format and colorize the code properly!
+One issue with `<t:thread>` elements might be, although they work perfectly, they don't render perfectly in text editors, like Notepad Plus Plus. This is basically because these text editors do not understand the `<t:thread>` element contains script code and not plain text; so they don't format and colorize the code properly!
 
-Fortunately, there is a solution: just enclose the code within `<script>` and `</script>` tags. In simpler words, write
+For JScript-based thread templates, there is a solution: just enclose the code within `<script>` and `</script>` tags. In simpler words, write
 
     <t:thread id="foo">
     <script>
@@ -152,20 +158,29 @@ instead of
     // The actual code
     </t:thread>
 
-This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *thread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
+This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *omegathread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
 
 ## Exitting from a thread
 Sometimes you need to exit from a thread and make it avoid executing the rest of its code; like the Win32 `ExitThread` function does in C++. Then you're welcome to use the following command in the thread code:
 
-    WScript.Quit();
+    threadc.exit();
 
-You can also pass an exit code to the Quit method, as follows:
+You can also pass an exit code to the `exit` method, as follows:
 
-    WScript.Quit(100);
+    threadc.exit(100);
+
+## Pausing a thread for a particular period
+A thread can call the `sleep` method of the `threadc` object to pause its execution for a specified period of time:
+
+    threadc.sleep(number of milliseconds);
+
+For example the following command pauses the execution of a thread for 4 seconds:
+
+    threadc.sleep(4000);
 
 ## Threading Port
-Unfortunately, apps that use `thread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Threading Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, whenever the app attempts to create a new thread, an error message similar to the following picture pops up:
+Unfortunately, apps that use `omegathread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Threading Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, whenever the app attempts to create a new thread, an error message similar to the following picture pops up:
 
 ![threading port closed](https://user-images.githubusercontent.com/31417320/161370903-fcbd1be5-352d-4625-90f0-a08741b6f887.png)
 
-Moreover, the `thread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
+Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
