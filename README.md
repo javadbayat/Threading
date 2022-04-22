@@ -184,3 +184,17 @@ Unfortunately, apps that use `omegathread.htc` component create an extra window 
 ![threading port closed](https://user-images.githubusercontent.com/31417320/161370903-fcbd1be5-352d-4625-90f0-a08741b6f887.png)
 
 Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
+
+## Making the threads debugable
+Whenever you simply create a thread (e.g. by calling `myThread.start()`), active debugging for that thread is disabled by default. For example, using the JScript `debugger` statement in the thread code will cause nothing to happen. Additionally, you are generally unable to use any debugger program to attach to the thread and set breakpoints in it. Attemting to do so with Microsoft Visual Stutio, for example, will cause the debugger to keep showing the following message:
+
+> Waiting to break when the next script code runs...
+
+To prevent this situation, when calling the `start` method to create a thread, you must mark the thread as debugable by setting the third parameter of the `start` method to `true`. Please note that this method has also a second parameter which we are not going to cover in this document; so you can just simply set it to `false`. The following code snippet starts the `fileMoverThread` from the previous examples with active debugging enabled.
+
+    tmid = fileMoverThread.start({
+        source: document.all.fileSource.value,
+        dest: document.all.txtDest.value
+    }, false, true);
+
+Now you can debug your thread using any desired script debugger app. Please note that each of the threads created by the *Omegathread.htc* component actually runs in the context of a special process named **`wscript.exe`**. So all you need to do is open the list of processes in your debugger app, find the `wscript.exe` process, and attach to it. Alternatively, if you are using JScript for your thread code, you can place a `debugger` statement anywhere in the thread code, so that when the thread execution reaches this statement, the debugger app automatically launches and attaches to the thread.
