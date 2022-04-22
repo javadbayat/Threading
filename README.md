@@ -160,6 +160,19 @@ instead of
 
 This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *omegathread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
 
+## Storing the thread code in external files
+Instead of placing the thread code directly within the `<t:thread>` element, you can use the `src` attribute of the thread template element to instruct the system to load the specified file and obtain the thread code. It's so simple; consider we have a script file named "HelloWorld.vbs" with the code below:
+
+    MsgBox "Hello, World!"
+
+Then we define a thread template in an HTA like below:
+
+    <t:thread id="helloThread" src="HelloWorld.vbs" />
+
+Finally, the following command can be used in a script to create a thread which simply displays the message, "Hello, World!".
+
+    helloThread.start();
+
 ## Exitting from a thread
 Sometimes you need to exit from a thread and make it avoid executing the rest of its code; like the Win32 `ExitThread` function does in C++. Then you're welcome to use the following command in the thread code:
 
@@ -186,7 +199,7 @@ Unfortunately, apps that use `omegathread.htc` component create an extra window 
 Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
 
 ## Making the threads debugable
-Whenever you simply create a thread (e.g. by calling `myThread.start()`), active debugging for that thread is disabled by default. For example, using the JScript `debugger` statement in the thread code will cause nothing to happen. Additionally, you are generally unable to use any debugger program to attach to the thread and set breakpoints in it. Attemting to do so with Microsoft Visual Stutio, for example, will cause the debugger to keep showing the following message:
+Whenever you simply create a thread (e.g. by calling `myThread.start()`), active debugging for that thread is disabled by default. For example, using the JScript `debugger` statement in the thread code will cause nothing to happen. Additionally, you are generally unable to use any debugger program to attach to the thread and set breakpoints in it. Attempting to do so with Microsoft Visual Stutio, for example, will cause the debugger to keep showing the following message:
 
 > Waiting to break when the next script code runs...
 
