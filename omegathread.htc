@@ -1,9 +1,12 @@
 <public:component tagName="thread" literalContent=true>
     <public:method name="start" />
     <public:method name="terminate" />
-    <public:method name="wait" />
     <public:method name="getExitCode" />
     <public:method name="resume" />
+    
+    <public:property name="slanguage" internalname="language" />
+
+    <public:event id="threadExitEvent" name="onbeforeexit" />
     
     <public:attach event="ondocumentready" for="element" onevent="initWBC()" />
     <public:attach event="oncontentready" for="element" onevent="initElem()" />
@@ -19,8 +22,17 @@ var wshShell = new ActiveXObject("WScript.Shell");
 var wbc;
 var signature = Math.round(Math.random() * 0xFFFFFF);
 var baseTMID = 1;
+var language = "jscript";
 
 var TF_SUSPENDED        = 1;
+var TF_DEBUGABLE        = 2;
+
+var TEM_EXEC_COMPLETED  = 0;
+var TEM_EXEC_HALTED     = 1;
+var TEM_KILLED          = 2;
+
+var TL_JSCRIPT = 1;
+var TL_VBSCRIPT = 2;
 
 function getCompFolder()
 {
@@ -70,41 +82,55 @@ function initElem()
     }
 }
 
-function start(arg, initiallySuspended)
+function start(arg, initiallySuspended, debugable)
 {
     wbc.RegisterAsBrowser = true;
     
     var tmid = baseTMID++;
-    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null};
+    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, indicateExit:thread_ie};
     
     if (initiallySuspended)
         threadsInfo(tmid).flags |= TF_SUSPENDED;
     
-    var hostPath = getCompFolder() + "thread_host.js";
-    threadsInfo(tmid).exec = wshShell.Exec('wscript "' + hostPath + '" ' + signature + " " + tmid);
+    if (debugable)
+        threadsInfo(tmid).flags |= TF_DEBUGABLE;
+    
+    switch (language.toLowerCase())
+    {
+    case "jscript" :
+    case "javascript" :
+        threadsInfo(tmid).language = TL_JSCRIPT;
+        var job = "RunJSThread";
+        break;
+    case "vbscript" :
+        threadsInfo(tmid).language = TL_VBSCRIPT;
+        var job = "RunVBSThread";
+        break;
+    default :
+        throw new Error("Unsupported thread language");
+    }
+
+    var hostPath = getCompFolder() + "thread_host.wsf";
+    threadsInfo(tmid).exec = wshShell.Exec("wscript //job:" + job + ' "' + hostPath + '" ' + (debugable ? "//D " : "") + signature + " " + tmid);
     
     return tmid;
+}
+
+function thread_ie(exitMode)
+{
+    var e = document.createEventObject();
+    e.tmid = this.tmid;
+    e.exitMode = exitMode ? exitMode : TEM_EXEC_COMPLETED;
+    threadExitEvent.fire(e);
 }
 
 function terminate(tmid)
 {
     if (threadsInfo.Exists(tmid))
     {
+        threadsInfo(tmid).indicateExit(TEM_KILLED);
         threadsInfo(tmid).exec.Terminate();
         threadsInfo.Remove(tmid);
-    }
-    else
-        throw new Error("Thread does not exist");
-}
-
-function wait(tmid)
-{
-    if (threadsInfo.Exists(tmid))
-    {
-        threadsInfo(tmid).exec.StdOut.ReadAll();
-        var ec = threadsInfo(tmid).exec.ExitCode;
-        threadsInfo.Remove(tmid);
-        return ec;
     }
     else
         throw new Error("Thread does not exist");
