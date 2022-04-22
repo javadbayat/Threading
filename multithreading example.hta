@@ -2,7 +2,7 @@
 <head>
     <title>Example</title>
     <hta:application windowstate="maximize" scroll="no" />
-    <?import namespace="t" implementation="thread.htc" ?>
+    <?import namespace="t" implementation="omegathread.htc" ?>
     <?import namespace="fcontrol" implementation="intbox.htc" ?>
     <style type="text/css">
         .appLayer {
@@ -220,9 +220,11 @@
             case 4 :
                 if (includesAlphaStage) {
                     mixStatusText.innerText = stageProgress() + "Generating transparency (alpha channel)...";
-                    mixProgBar.Max = progBarMax;
-                    mixProgBar.Value = 0;
-                    progPercent.innerText = "0%";
+                    if (progBarMax) {
+                        mixProgBar.Max = progBarMax;
+                        mixProgBar.Value = 0;
+                        progPercent.innerText = "0%";
+                    }
                     nUnitsProcessed.parentNode.style.display = "none";
                 }
                 else
@@ -348,7 +350,7 @@
     var ar = indicateStage(1);
     if (ar) {
         window.indicateAbortion();
-        WScript.Quit(EC_OPERATION_ABORTED);
+        threadc.exit(EC_OPERATION_ABORTED);
     }
     
     var if1 = new ActiveXObject("WIA.ImageFile");
@@ -371,7 +373,7 @@
     var ar = indicateStage(2, nPixels);
     if (ar) {
         window.indicateAbortion();
-        WScript.Quit(EC_OPERATION_ABORTED);
+        threadc.exit(EC_OPERATION_ABORTED);
     }
     
     var currentProgress = 0;
@@ -393,7 +395,7 @@
     var ar = indicateStage(3, nPixels * 2);
     if (ar) {
         window.indicateAbortion();
-        WScript.Quit(EC_OPERATION_ABORTED);
+        threadc.exit(EC_OPERATION_ABORTED);
     }
     
     var nup = 0, npp = 0;
@@ -419,7 +421,7 @@
         var ar = indicateStage(4, nPixels);
         if (ar) {
             window.indicateAbortion();
-            WScript.Quit(EC_OPERATION_ABORTED);
+            threadc.exit(EC_OPERATION_ABORTED);
         }
         
         var oif1 = outputVector1.ImageFile(width, height);
@@ -440,7 +442,7 @@
         var ar = indicateStage(5);
         if (ar) {
             window.indicateAbortion();
-            WScript.Quit(EC_OPERATION_ABORTED);
+            threadc.exit(EC_OPERATION_ABORTED);
         }
                 
         var ip = new ActiveXObject("WIA.ImageProcess");
@@ -460,7 +462,7 @@
         var ar = indicateStage(4);
         if (ar) {
             window.indicateAbortion();
-            WScript.Quit(EC_OPERATION_ABORTED);
+            threadc.exit(EC_OPERATION_ABORTED);
         }
         
         var oif1 = outputVector1.ImageFile(width, height);
@@ -487,7 +489,7 @@
             
             if (window.abortionRequest) {
                 window.indicateAbortion();
-                WScript.Quit(EC_OPERATION_ABORTED);
+                threadc.exit(EC_OPERATION_ABORTED);
             }
         }
     }
@@ -539,7 +541,7 @@
             
             if (window.abortionRequest) {
                 window.indicateAbortion();
-                WScript.Quit(EC_OPERATION_ABORTED);
+                threadc.exit(EC_OPERATION_ABORTED);
             }
         }
     }
@@ -552,7 +554,7 @@
             
             if (window.abortionRequest) {
                 window.indicateAbortion();
-                WScript.Quit(EC_OPERATION_ABORTED);
+                threadc.exit(EC_OPERATION_ABORTED);
             }
         }
     }
