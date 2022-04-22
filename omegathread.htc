@@ -2,6 +2,7 @@
     <public:method name="start" />
     <public:method name="terminate" />
     <public:method name="getExitCode" />
+    <public:method name="getTHID" />
     <public:method name="resume" />
     
     <public:property name="slanguage" internalname="language" />
@@ -145,6 +146,14 @@ function getExitCode(tmid)
         
         return 259;
     }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function getTHID(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+        return threadsInfo(tmid).exec.ProcessID;
     else
         throw new Error("Thread does not exist");
 }
