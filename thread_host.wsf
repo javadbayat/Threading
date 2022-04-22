@@ -66,7 +66,7 @@
                     else
                         while (1)
                             WSH.Sleep(60000);        
-                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0", script:this};
+                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0"};
     
                 if (thread.flags & TF_SUSPENDED)
                     threadc.suspend();
@@ -144,7 +144,7 @@
                     else
                         while (1)
                             WSH.Sleep(60000);        
-                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0", script:this};
+                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0"};
     
                 if (thread.flags & TF_SUSPENDED)
                     threadc.suspend();
@@ -152,7 +152,7 @@
         </script>
 
         <script language="VBScript">
-		    Execute thread.element.innerHTML
+            Execute thread.element.innerHTML
             thread.indicateExit
         </script>
     </job>
