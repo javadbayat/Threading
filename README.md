@@ -36,6 +36,7 @@ If the **Preserve image transparency** option in the Settings section is checked
 # Omegathread.htc Component
 **Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
+## Basic usage
 To use the component in an HTA, the first step is to declare an XML namespace named 't', and then import 'thread.htc' into that namespace [(See 'Importing a Custom Element' section in 'About Element Behaviors')](https://docs.microsoft.com/en-us/previous-versions//ms531426(v=vs.85)?redirectedfrom=MSDN).
 
 Then you must define one or more thread templates, which contain the script code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
