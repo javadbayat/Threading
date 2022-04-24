@@ -4,6 +4,9 @@
     <public:method name="getExitCode" />
     <public:method name="getTHID" />
     <public:method name="resume" />
+    <public:method name="getProcess" />
+    <public:method name="getCreationDate" />
+    <public:method name="getExitDate" />
     
     <public:property name="slanguage" internalname="language" />
 
@@ -24,6 +27,7 @@ var wbc;
 var signature = Math.round(Math.random() * 0xFFFFFF);
 var baseTMID = 1;
 var language = "jscript";
+var services = null;
 
 var TF_SUSPENDED        = 1;
 var TF_DEBUGABLE        = 2;
@@ -88,7 +92,7 @@ function start(arg, initiallySuspended, debugable)
     wbc.RegisterAsBrowser = true;
     
     var tmid = baseTMID++;
-    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, indicateExit:thread_ie};
+    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, creationDate:new Date, exitDate:null, indicateExit:thread_ie};
     
     if (initiallySuspended)
         threadsInfo(tmid).flags |= TF_SUSPENDED;
@@ -112,7 +116,7 @@ function start(arg, initiallySuspended, debugable)
     }
 
     var hostPath = getCompFolder() + "thread_host.wsf";
-    threadsInfo(tmid).exec = wshShell.Exec("wscript //job:" + job + ' "' + hostPath + '" ' + (debugable ? "//D " : "") + signature + " " + tmid);
+    threadsInfo(tmid).exec = wshShell.Exec("wscript" + ' "' + hostPath + '" //job:' + job + (debugable ? " //D " : " ") + signature + " " + tmid);
     
     return tmid;
 }
@@ -123,6 +127,8 @@ function thread_ie(exitMode)
     e.tmid = this.tmid;
     e.exitMode = exitMode ? exitMode : TEM_EXEC_COMPLETED;
     threadExitEvent.fire(e);
+    
+    this.exitDate = new Date;
 }
 
 function terminate(tmid)
@@ -166,6 +172,45 @@ function resume(tmid)
             threadsInfo(tmid).flags -= TF_SUSPENDED;
         else
             throw new Error("Thread is already running");
+    }
+    else
+        throw new Error("Thread does not exist");
+}
+
+function getProcess(tmid)
+{
+    if (getExitCode(tmid) != 259)
+        return null;
+    
+    var thid = getTHID(tmid);
+    
+    if (!services)
+        services = GetObject("winmgmts:");
+    
+    var query = "SELECT * FROM Win32_Process WHERE ProcessID = " + thid;
+    var col = services.ExecQuery(query);
+    if (col.Count)
+        return (new Enumerator(col)).item();
+    
+    throw new Error("The Win32_Process instance for the thread not found");
+}
+
+function getCreationDate(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+        return threadsInfo(tmid).creationDate.getVarDate();
+    else
+        throw new Error("Thread does not exist");
+}
+
+function getExitDate(tmid)
+{
+    if (threadsInfo.Exists(tmid))
+    {
+        if (threadsInfo(tmid).exitDate)
+            return threadsInfo(tmid).exitDate.getVarDate();
+        else
+            return null;
     }
     else
         throw new Error("Thread does not exist");
