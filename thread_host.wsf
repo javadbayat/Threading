@@ -49,6 +49,7 @@
                 thread = threadsInfo(tmid);
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
+                extern = new Function("varName", "this[varName] = window[varName];");
     
                 thread.script = this;
     
@@ -127,6 +128,7 @@
                 thread = threadsInfo(tmid);
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
+                extern = new Function("varName", "this[varName] = window[varName];");
     
                 thread.script = this;
     
@@ -150,7 +152,6 @@
                     threadc.suspend();
             })();
         </script>
-
         <script language="VBScript">
             Execute thread.element.innerHTML
             thread.indicateExit
