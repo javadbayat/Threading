@@ -15,7 +15,7 @@
                 var TF_SUSPENDED        = 1;
     
                 var TEM_EXEC_HALTED     = 1;
-    
+                
                 var e = new Enumerator(WScript.Arguments);
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
@@ -40,7 +40,7 @@
     
                 if (!threadsInfo)
                     throw new Error("The property '" + signature + "' does not exist in any windows.");
-    
+                
                 e.moveNext();
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
@@ -49,7 +49,7 @@
                 thread = threadsInfo(tmid);
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
-                extern = new Function("varName", "this[varName] = window[varName];");
+                extern = new Function("for (var i = 0;i < arguments.length;i++) this[arguments[i]] = window[arguments[i]];");
     
                 thread.script = this;
     
@@ -128,7 +128,7 @@
                 thread = threadsInfo(tmid);
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
-                extern = new Function("varName", "this[varName] = window[varName];");
+                extern = new Function("for (var i = 0;i < arguments.length;i++) this[arguments[i]] = window[arguments[i]];");
     
                 thread.script = this;
     
