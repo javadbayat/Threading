@@ -37,9 +37,17 @@ If the **Preserve image transparency** option in the Settings section is checked
 **Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
 ## Basic usage
-To use the component in an HTA, the first step is to declare an XML namespace named 't', and then import 'thread.htc' into that namespace [(See 'Importing a Custom Element' section in 'About Element Behaviors')](https://docs.microsoft.com/en-us/previous-versions//ms531426(v=vs.85)?redirectedfrom=MSDN).
+To use the component in an HTA, first, copy the two files "omegathread.htc" and "thread_host.wsf" (other ones are not required) from this repository to the directory where your HTA is stored. Then follow these steps:
 
-Then you must define one or more thread templates, which contain the script code to be executed by a thread. Then you can create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
+The first step is to declare a namespace named 't', and then import the component into that namespace. The namespace 't' can be declared by setting the `xmlns` attribute in the `<html>` element (the root element of your HTA), as follows:
+
+    <html xmlns:t>
+
+Then the 'omegathread.htc' component must be imported into the namespace 't' by adding the following `<?import?>` directive to the `<head>` element.
+
+    <?import namespace="t" implementation="omegathread.htc" ?>
+
+The next step is to define one or more thread templates, which contain the script code to be executed by a thread. This way you can later create from the thread template as many threads as desired, all of which execute the code within the template. Use the `<t:thread>` element to define a thread template. This element must necessarily have an id. For example, the following piece of code defines a template for a thread that simply moves a large file from one location to another, and then displays a message to indicate the success of the operation:
 
     <t:thread id="fileMoverThread">
     var fso = new ActiveXObject("Scripting.FileSystemObject");
@@ -134,9 +142,24 @@ Then the thread would generate a run-time error, because there is no `tmid` vari
     window.alert("The thread identifier is " + window.tmid);
     ...
 
-then the thread would look for the `tmid` variable in the usual script of the HTA; and it would find its main identifier and display it.
+then the thread would look for the `tmid` variable in the usual script of the HTA; and it would determine its main identifier and display it.
 
-In addition, in thread templates, you must not omit the name of the window object when calling one of its methods or accessing one of its properties. So the following code would also fail:
+### Using the `extern` function
+Consider this command is used in a thread template:
+
+    var foo = window.foo;
+
+This implies that a variable named `foo` was defined in the context of the usual script, and now we want to copy its value into a variable with the same name in the context of the thread template. This is a good technique if you need to reference such a variable many times in the thread template and you don't want to repeatedly prepend `window.` to the variable name.
+
+But doing so is even easier if you call the `extern` function, which takes a variable name as a string parameter and copies the variable from the context of the HTA script to the context of the thread. For example, the following command has the identical functionality as the preceding example:
+
+    extern("foo");
+
+In the example below, multiple variable names are passed to `extern`, so that all of those variables will be copied to the context of the thread.
+
+    extern("x", "y", "z");
+
+By the way, in thread templates, you must not omit the name of the window object when calling one of its methods or accessing one of its properties. So the following code would also fail:
 
     <t:thread id="fileMoverThread">
     alert("The thread identifier is " + window.tmid);
