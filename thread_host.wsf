@@ -5,7 +5,7 @@
             // which illustrated how to use WSH VBS to dynamically create an HTA window, and receive
             // its window object through a Web Browser Control. Here is its link:
             // https://stackoverflow.com/questions/47100085/creating-multi-select-list-box-in-vbscript/47111556#47111556
-            // Thanks a lot to his post, I'm using a similar mechanism in this component to
+            // Thanks a lot to his post, I used a similar mechanism in this component to
             // transfer thread data (like the thread template element, the extra parameter,
             // the thread flags, .etc) from the mshta.exe process (The HTA process) to the
             // wscript.exe process (the underlying process of the thread) via a dedicated
@@ -13,6 +13,8 @@
 
             eval((function () {
                 var TF_SUSPENDED        = 1;
+                var TF_BREAK_FROM_BEG   = 4;
+                var TF_HAS_RESOURCES    = 8;
     
                 var TEM_EXEC_HALTED     = 1;
                 
@@ -52,6 +54,9 @@
                 extern = new Function("for (var i = 0;i < arguments.length;i++) this[arguments[i]] = window[arguments[i]];");
     
                 thread.script = this;
+    
+                if (thread.flags & TF_HAS_RESOURCES)
+                    thread.transferResources();
     
                 threadc = {suspend:function() {
                     thread.flags |= TF_SUSPENDED;
@@ -72,7 +77,8 @@
                 if (thread.flags & TF_SUSPENDED)
                     threadc.suspend();
     
-                return thread.element.innerHTML;
+                return ((thread.flags & TF_BREAK_FROM_BEG) ? "debugger;\r\n" : "") +
+                        thread.element.innerHTML;
             })());
 
             thread.indicateExit();
@@ -84,7 +90,7 @@
             // which illustrated how to use WSH VBS to dynamically create an HTA window, and receive
             // its window object through a Web Browser Control. Here is its link:
             // https://stackoverflow.com/questions/47100085/creating-multi-select-list-box-in-vbscript/47111556#47111556
-            // Thanks a lot to his post, I'm using a similar mechanism in this component to
+            // Thanks a lot to his post, I used a similar mechanism in this component to
             // transfer thread data (like the thread template element, the extra parameter,
             // the thread flags, .etc) from the mshta.exe process (The HTA process) to the
             // wscript.exe process (the underlying process of the thread) via a dedicated
@@ -92,6 +98,7 @@
 
             (function() {
                 var TF_SUSPENDED        = 1;
+                var TF_HAS_RESOURCES    = 8;
     
                 var TEM_EXEC_HALTED     = 1;
     
@@ -132,6 +139,9 @@
     
                 thread.script = this;
     
+                if (thread.flags & TF_HAS_RESOURCES)
+                    thread.transferResources();
+                
                 threadc = {suspend:function() {
                     thread.flags |= TF_SUSPENDED;
                     do
@@ -153,7 +163,12 @@
             })();
         </script>
         <script language="VBScript">
-            Execute thread.element.innerHTML
+            If (thread.flags And 4) = 0 Then
+                Execute thread.element.innerHTML
+            Else
+                Execute "Stop" & VbCrLf & thread.element.innerHTML
+            End If
+            
             thread.indicateExit
         </script>
     </job>
