@@ -8,11 +8,14 @@
     <public:method name="getCreationDate" />
     <public:method name="getExitDate" />
     
-    <public:property name="slanguage" internalname="language" />
+    <public:property name="slanguage" value="jscript" />
+    <public:property name="debugMode" value="disabled" />
+    <public:property name="fetchMode" id="propFetchMode" get="get_fetchMode" put="put_fetchMode" />
+    <public:property name="resources" id="propResources" get="get_resources" put="put_resources" />
 
     <public:event id="threadExitEvent" name="onbeforeexit" />
     
-    <public:attach event="ondocumentready" for="element" onevent="initWBC()" />
+    <public:attach event="ondocumentready" for="element" onevent="initWBC();resumeResourceFetches();" />
     <public:attach event="oncontentready" for="element" onevent="initElem()" />
     <public:attach event="onunload" for="window" onevent="cleanUpThreads()" />
 </public:component>
@@ -23,19 +26,34 @@ String.prototype.endsWith = new Function("suffix", "return(this.substr(this.leng
 var threadsInfo = new ActiveXObject("Scripting.Dictionary");
 var fso = new ActiveXObject("Scripting.FileSystemObject");
 var wshShell = new ActiveXObject("WScript.Shell");
-var wbc;
+var wbc; // Web Browser Control
 var signature = Math.round(Math.random() * 0xFFFFFF);
 var baseTMID = 1;
-var language = "jscript";
 var services = null;
 
+// Resource-related variables
+var resources = "";
+var FM_RES_PUT = 1;
+var FM_THREAD_START = 2;
+var fetchMode = FM_RES_PUT;
+var fetchModeReadOnly = false;
+var resourcesIsland = null;
+var primaryDocLoaded = false;
+var delayedResourceFetches = null;
+var xmldoc = null;
+
+// Thread Flags
 var TF_SUSPENDED        = 1;
 var TF_DEBUGABLE        = 2;
+var TF_BREAK_FROM_BEG   = 4;
+var TF_HAS_RESOURCES    = 8;
 
+// Thread Exit Modes
 var TEM_EXEC_COMPLETED  = 0;
 var TEM_EXEC_HALTED     = 1;
 var TEM_KILLED          = 2;
 
+// Thread Languages
 var TL_JSCRIPT = 1;
 var TL_VBSCRIPT = 2;
 
@@ -55,7 +73,7 @@ function initWBC()
         // HTA window, and receive its window object through a Web Browser Control. Here is
         // its link:
         // https://stackoverflow.com/questions/47100085/creating-multi-select-list-box-in-vbscript/47111556#47111556
-        // Thanks a lot to his post, I'm using a similar mechanism in this component to
+        // Thanks a lot to his post, I used a similar mechanism in this component to
         // transfer thread data (like the thread template element, the extra parameter,
         // the thread flags, .etc) from the mshta.exe process (The HTA process) to the
         // wscript.exe process (the underlying process of the thread) via a dedicated
@@ -92,23 +110,41 @@ function start(arg, initiallySuspended, debugable)
     wbc.RegisterAsBrowser = true;
     
     var tmid = baseTMID++;
-    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, creationDate:new Date, exitDate:null, indicateExit:thread_ie};
+    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, creationDate:new Date, exitDate:null, indicateExit:thread_ie, transferResources:thread_tr};
     
     if (initiallySuspended)
         threadsInfo(tmid).flags |= TF_SUSPENDED;
     
+    if (resources)
+        threadsInfo(tmid).flags |= TF_HAS_RESOURCES;
+  
+    switch (debugMode.toLowerCase())
+    {
+    case "disabled" :
+        break;
+    case "enabled" :
+        debugable = true;
+        break;
+    case "auto" :
+        debugable = true;
+        threadsInfo(tmid).flags |= TF_BREAK_FROM_BEG;
+        break;
+    default :
+        throw new Error("Invalid debugMode value");
+    }
+    
     if (debugable)
         threadsInfo(tmid).flags |= TF_DEBUGABLE;
     
-    switch (language.toLowerCase())
+    switch (slanguage.toLowerCase())
     {
     case "jscript" :
     case "javascript" :
-        threadsInfo(tmid).language = TL_JSCRIPT;
+        threadsInfo(tmid).slanguage = TL_JSCRIPT;
         var job = "RunJSThread";
         break;
     case "vbscript" :
-        threadsInfo(tmid).language = TL_VBSCRIPT;
+        threadsInfo(tmid).slanguage = TL_VBSCRIPT;
         var job = "RunVBSThread";
         break;
     default :
@@ -118,10 +154,19 @@ function start(arg, initiallySuspended, debugable)
     var hostPath = getCompFolder() + "thread_host.wsf";
     threadsInfo(tmid).exec = wshShell.Exec("wscript" + ' "' + hostPath + '" //job:' + job + (debugable ? " //D " : " ") + signature + " " + tmid);
     
+    switch (debugMode.toLowerCase())
+    {
+    case "enabled" :
+    case "auto" :
+        Debug.writeln("# OmegaThread: A thread was created from the template '" + element.id + "'.");
+        Debug.writeln("# TMID: " + tmid + ", THID: " + (threadsInfo(tmid).exec.ProcessID));
+        break;
+    }
+    
     return tmid;
 }
 
-function thread_ie(exitMode)
+function thread_ie(exitMode) // thread.indicateExit
 {
     var e = document.createEventObject();
     e.tmid = this.tmid;
@@ -129,6 +174,15 @@ function thread_ie(exitMode)
     threadExitEvent.fire(e);
     
     this.exitDate = new Date;
+    
+    switch (debugMode.toLowerCase())
+    {
+    case "enabled" :
+    case "auto" :
+        Debug.writeln("# OmegaThread: A thread exitted. Template ID: '" + element.id + "'");
+        Debug.writeln("# TMID: " + this.tmid + ", THID: " + this.exec.ProcessID);
+        break;
+    }
 }
 
 function terminate(tmid)
@@ -214,6 +268,168 @@ function getExitDate(tmid)
     }
     else
         throw new Error("Thread does not exist");
+}
+
+function get_resources()
+{
+    return resources;
+}
+
+function put_resources(val)
+{
+    if (fetchMode == FM_RES_PUT)
+        resourcesIsland = val ? fetchResourceData(val) : null;
+    
+    resources = val;
+    fetchModeReadOnly = true;
+    propResources.fireChange();
+}
+
+function get_fetchMode()
+{
+    switch (fetchMode)
+    {
+    case FM_RES_PUT :
+        return "on-res-put";
+        break;
+    case FM_THREAD_START :
+        return "on-thread-start";
+        break;
+    }
+}
+
+function put_fetchMode(val)
+{
+    if (fetchModeReadOnly)
+        throw new Error("The fetchMode property is currently read-only");
+    
+    switch (val.toLowerCase())
+    {
+    case "" :
+    case "on-res-put" :
+        fetchMode = FM_RES_PUT;
+        break;
+    case "on-thread-start" :
+        fetchMode = FM_THREAD_START;
+        break;
+    default :
+        throw new Error("Invalid fetchMode value");
+    }
+    
+    propFetchMode.fireChange();
+}
+
+function fetchResourceData(resourcesAddress)
+{
+    if (resourcesAddress.charAt(0) == "#")
+    {
+        if (resourcesAddress.length == 1)
+            throw new Error("Invalid resources address");
+        
+        return fetchInternal(resourcesAddress.substr(1));
+    }
+    else
+        return fetchExternal(resourcesAddress);
+    
+    function fetchInternal(islandID)
+    {
+        // If the primary document has not been completely loaded yet
+        if (!primaryDocLoaded)
+        {
+            // Put off the fetch operation until the primary document has been completely loaded
+            delayedResourceFetches = createFetchThunk();
+            return null;
+        }
+        
+        var island = element.document.getElementById(islandID);
+        if (island)
+        {
+            if (island.tagName.toLowerCase() == "xml")
+            {
+                var rootElem = island.documentElement;
+                if (rootElem)
+                {
+                    if (rootElem.tagName.toLowerCase() == "resources")
+                        return rootElem;
+                    else
+                        throw new Error("Invalid root element for the resources XML Data Island");
+                }
+                else
+                    return new Error("The specified XML Data Island does not have a root element");
+            }
+            else
+                return new Error("The specified XML Data Island not found");
+        }
+        else
+            return new Error("The specified XML Data Island not found");
+                
+        function createFetchThunk()
+        {
+            var thunk = new Function("return fetchResourceData(arguments.callee.resAddr);");
+            thunk.resAddr = resourcesAddress;
+            return thunk;
+        }
+    }
+    
+    function fetchExternal(url)
+    {
+        if (!xmldoc)
+        {
+            xmldoc = new ActiveXObject("Microsoft.XMLDOM");
+            xmldoc.async = false;
+        }
+        
+        xmldoc.load(url);
+        if (xmldoc.parseError.errorCode)
+            return new Error("The specified XML document that contains resources could not be loaded.\nReason: " + xmldoc.parseError.reason);
+        
+        var rootElem = xmldoc.documentElement;
+        if (rootElem.tagName.toLowerCase() != "resources")
+            throw new Error("Invalid root element for the resources XML document.");
+        
+        return rootElem;
+    }
+}
+
+function resumeResourceFetches()
+{
+    primaryDocLoaded = true;
+    
+    if (delayedResourceFetches)
+    {
+        resourcesIsland = delayedResourceFetches();
+        delayedResourceFetches = null;
+    }
+}
+
+function thread_tr() // thread.transferResources
+{
+    if (fetchMode == FM_THREAD_START)
+        resourcesIsland = fetchResourceData(resources);
+    
+    if (resourcesIsland instanceof Error)
+    {
+        this.script.resources = null;
+        this.script.resourcesError = resourcesIsland;
+    }
+    else
+    {
+        var dict = this.script.WSH.CreateObject("Scripting.Dictionary");
+        dict.CompareMode = 1;
+        
+        var resourceNodeList = resourcesIsland.selectNodes("./resource");
+        var resourceNode;
+        var resourceIndex = 0;
+        
+        while (resourceNode = resourceNodeList.nextNode())
+        {
+            var resourceID = resourceNode.getAttribute("id");
+            dict(resourceID ? resourceID : resourceIndex++) = resourceNode.text;
+        }
+        
+        this.script.resources = dict;
+        this.script.resourcesError = null;
+    }
 }
 
 function cleanUpThreads()
