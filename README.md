@@ -238,7 +238,7 @@ Launch your HTA. Then launch your debugger app and attach to the HTA process. Ne
     # OmegaThread: A thread was created from the template 'fileMoverThread'.
     # TMID: 1, THID: 2435
 
-In this message, the number 1 indicates the **Thread Main Identifier (TMID)**, and 2435 indicates the **Thread Host Identifier (THID)**. So now you must open a new debugger window, and attach to a process named `wscript.exe` whose process ID is the THID (in this example, 2435). This process is called, "the **Thread Host Process**".
+In this message, the number 1 indicates the **Thread Main Identifier (TMID)**, and 2435 indicates the **Thread Host Identifier (THID)**. So now you must open a new debugger window, and attach to a process named `wscript.exe` whose process ID is the same as THID (in this example, 2435). This process is called, "the **Thread Host Process**".
 
 Then imediately click the "Break All" button in the debugger. So now the debugger breaks the thread, displays its code, and lets you debug it.
 
