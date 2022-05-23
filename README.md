@@ -149,7 +149,7 @@ Consider this command is used in a thread template:
 
     var foo = window.foo;
 
-This implies that a variable named `foo` was defined in the context of the usual script, and now we want to copy its value into a variable with the same name in the context of the thread template. This is a good technique if you need to reference such a variable many times in the thread template and you don't want to repeatedly prepend `window.` to the variable name.
+This implies that a variable named `foo` was defined in the context of the usual script, and now we want to copy its value into a variable with the same name in the context of the thread template. This is a useful technique if you need to reference such a variable many times in the thread template and you don't want to repeatedly prepend `window.` to the variable name.
 
 But doing so is even easier if you call the `extern` function, which takes a variable name as a string parameter and copies the variable from the context of the HTA script to the context of the thread. For example, the following command has the identical functionality as the preceding example:
 
@@ -222,16 +222,37 @@ Unfortunately, apps that use `omegathread.htc` component create an extra window 
 
 Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
 
-## Making the threads debugable
+## Debugging threads
 Whenever you simply create a thread (e.g. by calling `myThread.start()`), active debugging for that thread is disabled by default. For example, using the JScript `debugger` statement in the thread code will cause nothing to happen. Additionally, you are generally unable to use any debugger program to attach to the thread and set breakpoints in it. Attempting to do so with Microsoft Visual Stutio, for example, will cause the debugger to keep showing the following message:
 
 > Waiting to break when the next script code runs...
 
-To prevent this situation, when calling the `start` method to create a thread, you must mark the thread as debugable by setting the third parameter of the `start` method to `true`. Please note that this method has also a second parameter which we are not going to cover in this document; so you can just simply set it to `false`. The following code snippet starts the `fileMoverThread` from the previous examples with active debugging enabled.
+So if you want to debug your thread, first, set the `debugmode` attribute of the thread template element to `enabled`, like below:
+
+    <t:thread id="fileMoverThread" debugmode="enabled">
+
+Now you can either use a `debugger` statement in the thread template code, or do the following steps in order to attach your debugger app to the thread and set breakpoints in it.
+
+Launch your HTA. Then launch your debugger app and attach to the HTA process. Next, make your HTA create the thread that you wish to debug. Upon thread creation, the OmegaThread component logs a message in the debugger's output window which is similar to the following:
+
+    # OmegaThread: A thread was created from the template 'fileMoverThread'.
+    # TMID: 1, THID: 2435
+
+In this message, the number 1 indicates the **Thread Main Identifier (TMID)**, and 2435 indicates the **Thread Host Identifier (THID)**. So now you must open a new debugger window, and attach to a process named `wscript.exe` whose process ID is the THID (in this example, 2435). This process is called, "the **Thread Host Process**".
+
+Then imediately click the "Break All" button in the debugger. So now the debugger breaks the thread, displays its code, and lets you debug it.
+
+Alternatively, you can set the `debugmode` attribute to `auto`. In this case, you won't have to manually perform the above steps in order to attach the debugger to the thread. Rather, as soon as the thread starts, the debugger automatically launches and breaks the thread at the beginning of its code. The following example shows how to set `debugmode` attribute to `auto`:
+
+    <t:thread id="fileMoverThread" debugmode="auto">
+
+The following information applies to older versions of OmegaThread. It describes another debugging approach that still works, but is no longer recommended.
+
+~~To prevent this situation, when calling the `start` method to create a thread, you must mark the thread as debugable by setting the third parameter of the `start` method to `true`. Please note that this method has also a second parameter which we are not going to cover in this document; so you can just simply set it to `false`. The following code snippet starts the `fileMoverThread` from the previous examples with active debugging enabled.~~
 
     tmid = fileMoverThread.start({
         source: document.all.fileSource.value,
         dest: document.all.txtDest.value
     }, false, true);
 
-Now you can debug your thread using any desired script debugger app. Please note that each of the threads created by the *Omegathread.htc* component actually runs in the context of a special process named **`wscript.exe`**. So all you need to do is open the list of processes in your debugger app, find the `wscript.exe` process, and attach to it. Alternatively, if you are using JScript for your thread code, you can place a `debugger` statement anywhere in the thread code, so that when the thread execution reaches this statement, the debugger app automatically launches and attaches to the thread.
+~~Now you can debug your thread using any desired script debugger app. Please note that each of the threads created by the *Omegathread.htc* component actually runs in the context of a special process named **`wscript.exe`**. So all you need to do is open the list of processes in your debugger app, find the `wscript.exe` process, and attach to it. Alternatively, if you are using JScript for your thread code, you can place a `debugger` statement anywhere in the thread code, so that when the thread execution reaches this statement, the debugger app automatically launches and attaches to the thread.~~
