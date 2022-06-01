@@ -18,7 +18,7 @@
     
                 var TEM_EXEC_HALTED     = 1;
                 
-                var e = new Enumerator(WScript.Arguments);
+                var e = new Enumerator(WSH.Arguments);
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
     
@@ -102,7 +102,7 @@
     
                 var TEM_EXEC_HALTED     = 1;
     
-                var e = new Enumerator(WScript.Arguments);
+                var e = new Enumerator(WSH.Arguments);
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
     
