@@ -337,7 +337,7 @@ function fetchResourceData(resourcesAddress)
         if (!primaryDocLoaded)
         {
             // Put off the fetch operation until the primary document has been completely loaded
-            delayedResourceFetches = createFetchThunk();
+            delayedResourceFetches = createFetchWrapper();
             return null;
         }
         
@@ -363,11 +363,11 @@ function fetchResourceData(resourcesAddress)
         else
             return new Error("The specified XML Data Island not found");
                 
-        function createFetchThunk()
+        function createFetchWrapper()
         {
-            var thunk = new Function("return fetchResourceData(arguments.callee.resAddr);");
-            thunk.resAddr = resourcesAddress;
-            return thunk;
+            var wrapper = new Function("return fetchResourceData(arguments.callee.resAddr);");
+            wrapper.resAddr = resourcesAddress;
+            return wrapper;
         }
     }
     
