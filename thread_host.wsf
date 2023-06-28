@@ -1,4 +1,4 @@
-<package>
+﻿<package>
     <job id="RunJSThread">
         <script language="JScript">
             // Taking a look at this code still reminds me of Omegastripes's post on Stack Overflow,
@@ -22,11 +22,12 @@
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
     
-                var signature = "app" + e.item();
+                // Begin the rendezvous operation.
+                var signature = "OmegaStripes_" + e.item();
                 var wins = WSH.CreateObject("Shell.Application").Windows();
                 var threadsInfo;
     
-                for (var i = 0;i < wins.Count;i++)
+                for (var i = 0; i < wins.Count; i++)
                 {
                     var win = wins.Item(i);
                     if (win)
@@ -49,9 +50,11 @@
     
                 var tmid = Number(e.item());
                 thread = threadsInfo(tmid);
+                // The rendezvous is over; now we have the thread object stored in the `thread` variable.
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
-                extern = new Function("for (var i = 0;i < arguments.length;i++) this[arguments[i]] = window[arguments[i]];");
+                extern = new Function("for (var i = 0; i < arguments.length; i++) this[arguments[i]] = window[arguments[i]];");
+                importWSC = new Function("scriptlet", "componentID", "return GetObject('script:' + (threadc.fso.GetAbsolutePathName(scriptlet)) + (componentID ? '#' + componentID : ''));");
     
                 thread.script = this;
     
@@ -72,7 +75,12 @@
                     else
                         while (1)
                             WSH.Sleep(60000);        
-                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0"};
+                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0",
+                wshShell:WSH.CreateObject("WScript.Shell"),
+                fso:WSH.CreateObject("Scripting.FileSystemObject")};
+                
+                if (thread.cd)
+                    threadc.wshShell.CurrentDirectory = thread.cd;
     
                 if (thread.flags & TF_SUSPENDED)
                     threadc.suspend();
@@ -105,12 +113,13 @@
                 var e = new Enumerator(WSH.Arguments);
                 if (e.atEnd())
                     throw new Error("Not enough arguments");
-    
-                var signature = "app" + e.item();
+                
+                // Begin the rendezvous operation.
+                var signature = "OmegaStripes_" + e.item();
                 var wins = WSH.CreateObject("Shell.Application").Windows();
                 var threadsInfo;
     
-                for (var i = 0;i < wins.Count;i++)
+                for (var i = 0; i < wins.Count; i++)
                 {
                     var win = wins.Item(i);
                     if (win)
@@ -133,10 +142,12 @@
     
                 var tmid = Number(e.item());
                 thread = threadsInfo(tmid);
+                // The rendezvous is over; now we have the thread object stored in the `thread` variable.
                 tparam = thread.arg;
                 window = thread.element.document.parentWindow;
-                extern = new Function("for (var i = 0;i < arguments.length;i++) this[arguments[i]] = window[arguments[i]];");
-    
+                extern = new Function("for (var i = 0; i < arguments.length; i++) this[arguments[i]] = window[arguments[i]];");
+                importWSC = new Function("scriptlet", "componentID", "return GetObject('script:' + (threadc.fso.GetAbsolutePathName(scriptlet)) + (componentID ? '#' + componentID : ''));");
+                
                 thread.script = this;
     
                 if (thread.flags & TF_HAS_RESOURCES)
@@ -155,8 +166,13 @@
                         WSH.Sleep(t);
                     else
                         while (1)
-                            WSH.Sleep(60000);        
-                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0"};
+                            WSH.Sleep(60000);
+                }, hostFullName:WSH.ScriptFullName, hostVersion:"1.0",
+                wshShell:WSH.CreateObject("WScript.Shell"),
+                fso:WSH.CreateObject("Scripting.FileSystemObject")};
+                
+                if (thread.cd)
+                    threadc.wshShell.CurrentDirectory = thread.cd;
     
                 if (thread.flags & TF_SUSPENDED)
                     threadc.suspend();

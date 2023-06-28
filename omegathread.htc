@@ -10,6 +10,7 @@
     
     <public:property name="slanguage" value="jscript" />
     <public:property name="debugMode" value="disabled" />
+    <public:property name="cd" id="propCD" get="get_cd" put="put_cd" />
     <public:property name="fetchMode" id="propFetchMode" get="get_fetchMode" put="put_fetchMode" />
     <public:property name="resources" id="propResources" get="get_resources" put="put_resources" />
 
@@ -30,6 +31,7 @@ var wbc; // Web Browser Control
 var signature = Math.round(Math.random() * 0xFFFFFF);
 var baseTMID = 1;
 var services = null;
+var cd = "";
 
 // Resource-related variables
 var resources = "";
@@ -65,7 +67,7 @@ function getCompFolder()
 function initWBC()
 {
     var doc = element.document;
-    wbc = doc.getElementById("threadingPort");
+    wbc = doc.getElementById("rendezvousPort");
     if (!wbc)
     {
         // Taking a look at this part of the code still reminds me of Omegastripes's post
@@ -80,13 +82,13 @@ function initWBC()
         // Web Browser Control (WBC).
         
         wbc = doc.createElement("object");
-        wbc.id = "threadingPort";
+        wbc.id = "rendezvousPort";
         wbc.classid = "clsid:8856F961-340A-11D0-A96B-00C04FD705A2";
         wbc.width = wbc.height = 1;
         doc.body.appendChild(wbc);
     }
     
-    wbc.PutProperty("app" + signature, threadsInfo);
+    wbc.PutProperty("OmegaStripes_" + signature, threadsInfo);
 }
 
 function initElem()
@@ -110,7 +112,7 @@ function start(arg, initiallySuspended, debugable)
     wbc.RegisterAsBrowser = true;
     
     var tmid = baseTMID++;
-    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, flags:0, script:null, creationDate:new Date, exitDate:null, indicateExit:thread_ie, transferResources:thread_tr};
+    threadsInfo(tmid) = {arg:arg, element:element, tmid:tmid, cd:cd, flags:0, script:null, creationDate:new Date, exitDate:null, indicateExit:thread_ie, transferResources:thread_tr};
     
     if (initiallySuspended)
         threadsInfo(tmid).flags |= TF_SUSPENDED;
@@ -268,6 +270,23 @@ function getExitDate(tmid)
     }
     else
         throw new Error("Thread does not exist");
+}
+
+function get_cd()
+{
+    return cd;
+}
+
+function put_cd(val)
+{
+    if (val.startsWith(".\\"))
+        cd = element.document.URL.substring(7, element.document.URL.lastIndexOf("\\") + 1) + val.substr(2);
+    else if (val.startsWith("~\\"))
+        cd = getCompFolder() + val.substr(2);
+    else
+        cd = val;
+    
+    propCD.fireChange();
 }
 
 function get_resources()
@@ -435,7 +454,7 @@ function thread_tr() // thread.transferResources
 function cleanUpThreads()
 {
     var arr = (new VBArray(threadsInfo.Items())).toArray();
-    for (var i = 0;i < arr.length;i++)
+    for (var i = 0; i < arr.length; i++)
     {
         try
         {
