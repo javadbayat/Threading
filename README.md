@@ -215,12 +215,12 @@ For example the following command pauses the execution of a thread for 4 seconds
 
     threadc.sleep(4000);
 
-## Threading Port
-Unfortunately, apps that use `omegathread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Threading Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, whenever the app attempts to create a new thread, an error message similar to the following picture pops up:
+## Rendezvous Port
+Unfortunately, apps that use `omegathread.htc` component create an extra window that sticks on the taskbar, but displays no content or user interface. This window is called **"The Rendezvous Port"** and must not be closed by the user since all threads require it to connect to the HTA process. Once this window is closed, whenever the app attempts to create a new thread, an error message similar to the following picture pops up:
 
-![threading port closed](https://user-images.githubusercontent.com/31417320/161370903-fcbd1be5-352d-4625-90f0-a08741b6f887.png)
+![rendezvous port closed](https://user-images.githubusercontent.com/31417320/161370903-fcbd1be5-352d-4625-90f0-a08741b6f887.png)
 
-Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Threading Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
+Moreover, the `omegathread.htc` component automatically appends to the `<body>` element an `<object>` element which is related to the Rendezvous Port. This element doesn't display any additional content in your HTA and must not be removed from the document tree.
 
 ## Debugging threads
 Whenever you simply create a thread (e.g. by calling `myThread.start()`), active debugging for that thread is disabled by default. For example, using the JScript `debugger` statement in the thread code will cause nothing to happen. Additionally, you are generally unable to use any debugger program to attach to the thread and set breakpoints in it. Attempting to do so with Microsoft Visual Stutio, for example, will cause the debugger to keep showing the following message:
