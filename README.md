@@ -260,3 +260,127 @@ The following information applies to older versions of OmegaThread. It describes
     }, false, true);
 
 ~~Now you can debug your thread using any desired script debugger app. Please note that each of the threads created by the *Omegathread.htc* component actually runs in the context of a special process named **`wscript.exe`**. So all you need to do is open the list of processes in your debugger app, find the `wscript.exe` process, and attach to it. Alternatively, if you are using JScript for your thread code, you can place a `debugger` statement anywhere in the thread code, so that when the thread execution reaches this statement, the debugger app automatically launches and attaches to the thread.~~
+
+## Use of OmegaThread in image editing
+The [WIA Automation Layer](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-startpage) enables scripts to edit raster image files (e.g. BMP, JPEG, PNG, GIF, TIFF files) by allowing scripts to have control over all the pixels of the image, and determine/modify the color of each pixel. For this purpose, the **WIA Automation** provides a set of COM objects including the [`ImageFile`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-imagefile) and [`Vector`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-vector) objects. After a script instantiates the [`ImageFile`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-imagefile) object, it calls its [`LoadFile`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-iimagefile-loadfile) method to load the raster image file of interest. The script then invokes the [`ARGBData`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-iimagefile-argbdata) property of the [`ImageFile`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-imagefile) object, which returns a [`Vector`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-vector) object containing the colors of all the pixels of the image. Finally, in order to determine/modify the color of a particular pixel, the script invokes the [`Item`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-ivector-item) property of the [`Vector`](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/wiaaut/-wiaaut-vector) object, passing it the index of the pixel of interest. The **`Item`** property sets or retrieves a **Long** value representing the **Alpha, Red, Green, and Blue** color components of the pixel. So WIA Automation is very useful for scripts to edit raster image files.
+
+On the other hand, using the **WIA Automation** to perform a heavy operation on an entire raster image may have a bad impact on the performance of the script, which is a common problem that is also discussed [on this page](https://www.vbforums.com/showthread.php?889525-WIA-2-0-Vector-Add()-method-slow). For example, suppose you want to write a script that converts a raster image file to grayscale. Then you would have to iterate through all the pixels of the image, in order to calculate the average of the RGB component values of each pixel, and then change the value of that pixel accordingly. Since there is *an abundance of pixels* in the image, iterating through *all the pixels* in the image would cause the operation to take a lot of time, and would result in a very slow performance.
+
+That's where the **OmegaThread library** comes to help. The problem can be solved by writing a multi-threaded HTA and having the conversion operation performed by a separate thread; as a result, the user interface of the HTA remains responsive throughout the operation, so that the HTA can display a progress bar or a loading spinner to evoke patience in the end-user.
+
+For instance, below is a **multi-threaded** HTA that converts a raster image file to grayscale. In the HTA, there is a form with an `<input type="file">` element which allows the user to select the raster image file of interest. Within the form, there is also a button named **"Gray-Scale"** that the user can click to start the conversion operation. Internally, when clicking the **Gray-Scale** button, the HTA creates a separate worker thread (via the **OmegaThread library**) which performs the operation. Then the HTA displays [a loading spinner](https://javadbayat.github.io/Test/processing.gif) (as a gif image) and keeps it visible until that thread finishes its work. When the conversion operation is over, the worker thread displays a `prompt` dialog box which asks the user to enter the path of the file in which the resulting grayscale image is to be stored.
+
+```
+<html xmlns:t>
+<head>
+<title>Make Gray-Scale Photos</title>
+<hta:application windowstate="maximize" scroll="no" contextmenu="no" />
+<meta http-equiv="content-type" content="text/html; charset = UTF-8">
+<meta http-equiv="MSThemeCompatible" content="Yes">
+
+<?import namespace="t" implementation="omegathread.htc" ?>
+
+<script language="jscript">
+var tmid = 0;
+
+onload = function() {
+    document.mainForm.btnMakeGrayscale.onclick = startProcessing;
+};
+
+function startProcessing() {
+    tmid = grayscaleThread.start({
+        imageFilePath: document.mainForm.imageFile.value,
+        indicateCompletion: function() {
+            document.mainForm.imageFile.disabled = false;
+            document.mainForm.btnMakeGrayscale.innerText = "Gray-Scale";
+            document.mainForm.btnMakeGrayscale.disabled = false;
+            document.images.waitSign.style.display = "none";
+            document.body.style.cursor = "default";
+        }
+    });
+    
+    document.mainForm.imageFile.disabled = true;
+    document.mainForm.btnMakeGrayscale.innerText = "Processing";
+    document.mainForm.btnMakeGrayscale.disabled = true;
+    document.images.waitSign.style.display = "inline";
+    document.body.style.cursor = "wait";
+}
+</script>
+
+<t:thread id="grayscaleThread" slanguage="jscript">
+<script>
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+if (!fso.FileExists(tparam.imageFilePath)) {
+    window.alert("The specified image file was not found.");
+    threadc.exit();
+}
+
+var wiaFormatPNG = "{B96B3CAF-0728-11D3-9D7B-0000F81EF32E}";
+
+var imageFile = new ActiveXObject("WIA.ImageFile");
+imageFile.LoadFile(tparam.imageFilePath);
+
+var nPixels = imageFile.Width * imageFile.Height;
+var vector = imageFile.ARGBData;
+var mask = 0xFF << 24;
+for (var i = 1; i <= nPixels; i++) {
+    var color = vector(i);
+    var red = color & 0x00FF0000 >> 16;
+    var green = color & 0x0000FF00 >> 8;
+    var blue = color & 0x000000FF;
+    var average = Math.floor((red + green + blue) / 3);
+    color = color & mask | (average << 16) | (average << 8) | average;
+    vector(i) = color;
+}
+
+var suggestion = getFileNameSuggestion();
+var outputImageFile = window.prompt("Enter the full name of the file in which to store the output image.", suggestion);
+if (!outputImageFile)
+    threadc.exit();
+
+var ip = new ActiveXObject("WIA.ImageProcess");
+ip.Filters.Add(ip.FilterInfos("ARGB").FilterID);
+ip.Filters(1).Properties("ARGBData") = vector;
+ip.Filters.Add(ip.FilterInfos("Convert").FilterID);
+ip.Filters(2).Properties("FormatID") = wiaFormatPNG;
+
+imageFile = ip.Apply(imageFile);
+imageFile.SaveFile(outputImageFile);
+
+tparam.indicateCompletion();
+
+function getFileNameSuggestion() {
+    var filePath = tparam.imageFilePath;
+    var newFileName = "grayscale_" + (fso.GetBaseName(filePath)) + ".png";
+    return fso.BuildPath(fso.GetParentFolderName(filePath), newFileName);
+}
+</script>
+</t:thread>
+</head>
+<body>
+<form name="mainForm" onsubmit="return false;">
+    <label for="inputImageFile">Image File:</label>
+    <input type="file" name="imageFile" id="inputImageFile"><br><br>
+    <button name="btnMakeGrayscale">Gray-Scale</button>
+</form>
+<img name="waitSign" src="https://javadbayat.github.io/Test/processing.gif" style="display: none;">
+</body>
+</html>
+```
+
+**Code explanation:**  
+The function **`startProcessing`** handles the **`onclick`** event for the **Gray-Scale** button. This function takes the following actions:
+
++ Creates **the worker thread** to perform the conversion operation. Also passes the thread a parameter which will be explained later.
++ Changes the text within the **GrayScale** button from `Gray-Scale` to `Processing`. Then disables all the elements within the form (because the program can handle only one conversion operation at a time, and the user must not enter anything in the form while the operation is ongoing.)
++ Makes the loading spinner visible by changing the value of CSS attribute `display` from `none` to `inline`.
++ Changes the cursor of the program in order to indicate the system is working.
+
+When **the worker thread** is created, it is passed **an object parameter** that contains the following properties:
+
++ **`imageFilePath`**: The path of the raster image file that is to be converted. This path is taken from the value of the `<input type="file">` element within the form, and then it is assigned to this property.
++ **`indicateCompletion`**: A pointer to a call-back function which is called by the worker thread after the conversion operation is completed. This call-back function merely restores the HTA user interface to its original state (e.g. makes the loading spinner hidden .etc).
+
+When the worker thread starts to run, it first does some validation. So it checks the existance of the input image file that was specified on the form. If the file does not exist, then the worker thread calls `window.alert` to display an error message and then exits.
+
+Next, the worker thread starts utilizing the **WIA Automation**. It loads the input image file, and modifies its pixels to make them grayscale. Then the thread calls `window.prompt` to open a dialog box to ask the user to enter the path of the output image file. Finally, it stores the output image file to disk (in PNG format).
