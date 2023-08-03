@@ -36,7 +36,7 @@ If the **Preserve image transparency** option in the Settings section is checked
 # Omegathread.htc Component
 [HTML Applications (HTAs)](https://en.wikipedia.org/wiki/HTML_Application) is a great technology that provides a way to write ordinary Microsoft Windows programs using Dynamic HTML and scripting languages (e.g. JScript or VBScript), enabling these languages to run outside of conventional web browsers like Chrome or Firefox. These applications, despite all their benefits, are known to be **single-threaded**, which might cause some problems when developing processor-intensive applications. For example, imagine you are going to make an HTA that is supposed to move a large file (e.g. a 4-GB file) from one given location to another; so you incorporate a form in your HTA that contains two text fields which take the source and destination file paths from the user. In the form, there is also a button which, when clicked, will perform the file movement operation by calling the [`MoveFile`](https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/movefile-method) method of the [`FileSystemObject`](https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/filesystemobject-object). Since the `MoveFile` method does a synchronous operation and the given source file is very large, the script of the HTA blocks at `fso.MoveFile( ... )` command for a long time. This will unfortunately result in the HTA window and its whole user interface freezing up (=hanging) until the file movement operation is completed. Thus, the end-user will be probably unhappy with your app.
 
-The **Omegathread library** has been designed to solve that problem by providing multithreading capabilities for HTAs. With the aid of this library, in the preceding example, clicking the form's submit button will cause the program to create a thread which performs the file movement operation, and when the operation is completed, the thread will display a message to the user, indicating that the file has been successfully moved. This way the user interface won't freeze up, and the end-user won't be frustrated.
+The **Omegathread library** has been developed to solve that problem by providing multithreading capabilities for HTAs. With the aid of this library, in the preceding example, clicking the form's submit button will cause the program to create a thread which performs the file movement operation, and when the operation is completed, the thread will display a message to the user, indicating that the file has been successfully moved. This way the user interface won't freeze up, and the end-user won't be frustrated.
 
 **Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
@@ -294,7 +294,7 @@ function startProcessing() {
             document.mainForm.imageFile.disabled = false;
             document.mainForm.btnMakeGrayscale.innerText = "Gray-Scale";
             document.mainForm.btnMakeGrayscale.disabled = false;
-            document.images.waitSign.style.display = "none";
+            document.images.loadingSpinner.style.display = "none";
             document.body.style.cursor = "default";
         }
     });
@@ -302,7 +302,7 @@ function startProcessing() {
     document.mainForm.imageFile.disabled = true;
     document.mainForm.btnMakeGrayscale.innerText = "Processing";
     document.mainForm.btnMakeGrayscale.disabled = true;
-    document.images.waitSign.style.display = "inline";
+    document.images.loadingSpinner.style.display = "inline";
     document.body.style.cursor = "wait";
 }
 </script>
@@ -363,7 +363,7 @@ function getFileNameSuggestion() {
     <input type="file" name="imageFile" id="inputImageFile"><br><br>
     <button name="btnMakeGrayscale">Gray-Scale</button>
 </form>
-<img name="waitSign" src="https://javadbayat.github.io/Test/processing.gif" style="display: none;">
+<img name="loadingSpinner" src="https://javadbayat.github.io/Test/processing.gif" style="display: none;">
 </body>
 </html>
 ```
