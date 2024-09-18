@@ -1,38 +1,6 @@
 # Threading
 An HTML component which enables you to create threads in HTAs, along with an example of multi-threaded app that makes use of this component.
 
-# Example app
-Run the app by double-clicking the file 'multithreading example.hta'. The app has two tabs: **Search** and **Mix Images**.
-
-## Search tab
-In the Search tab, you can search your file system. In the **Location** field, enter the path of the directory in which the app will look for files. In the **File name** field, enter the name of the file you wish to find. Note that you can also place *wildcards* in the file name.
-
-Finally, click the **Search** button to start the search. Technically, this will result in creation of a thread that performs the search operation. After the search is started, you can stop it by simply clicking the **Stop** button. Technically, this will result in the search thread being killed.
-
-The results of the search will be displayed in the light-yellow box below the buttons. Clicking on each result will make the app open the containing folder of the file in a File Explorer window. You can also clear the list of results by clicking the **Clear Results** button next to the Search button.
-
-Clicking **Read Results** button will make the app create a thread to read the search results aloud via the system's text-to-speech engine. After clicking it, you can stop the playback by clicking it again.
-
-## Mix Images tab
-**Note:** To use this tab, you need to run the app on **Windows Vista or later**.
-
-In the Mix Images tab, the app takes two images as input and mixes them to produce a couple of composite images each of which contains the input images overlaid with each other. So it's a *magical operation*! Try it to see what it really means.
-
-In the **Input** section, click the **Browse** buttons to select the first and second input image files that are to be mixed.  
-In the **Output** section, click the **Browse** button to select the directory in which the two composite images will be saved. The name of these two composite image files will be in the following format by default:  
-*n*.bmp  
-where n is an automatically generated number. For example, firstly, the name '1.bmp' is chosen by the app. But if the file '1.bmp' already exists, the name '2.bmp' is chosen; and if it again exists, '3.bmp' is chosen, and so on.
-
-Now start mixing images by clicking the **Mix!** button. Watch the progress bar until the operation is completed, and the following message pops up:
-
-> The images were successfully mixed!
-
-After the mix operation, these two composite image files will be approximately identical to each other. But wait - do not assume that the second file is useless! You are able to *reconstruct* the original input image files from these composite image files if both of them are present. To do so, you need to start a new mix operation with the app by specifying the same composite images as input images. Then the app will create output images that are identical to the original images!
-
-Then what is the **Unit size** field in the Settings section? It's hard to explain, but we recommend that you leave it be the default (1). Because the higher its value, the lower the quality of the composite images.
-
-If the **Preserve image transparency** option in the Settings section is checked, then if any of the pixels in the input images are transparent, the corresponding pixels in the composite images will be also transparent. Otherwise, the app will generate all the pixels in the composite images with an alpha value of 255, so that the entire composite images will be opaque.
-
 # Omegathread.htc Component
 [HTML Applications (HTAs)](https://en.wikipedia.org/wiki/HTML_Application) is a great technology that provides a way to write ordinary Microsoft Windows programs using Dynamic HTML and scripting languages (e.g. JScript or VBScript), enabling these languages to run outside of conventional web browsers like Chrome or Firefox. These applications, despite all their benefits, are known to be **single-threaded**, which might cause some problems when developing processor-intensive applications. For example, imagine you are going to make an HTA that is supposed to move a large file (e.g. a 4-GB file) from one given location to another; so you incorporate a form in your HTA that contains two text fields which take the source and destination file paths from the user. In the form, there is also a button which, when clicked, will perform the file movement operation by calling the [`MoveFile`](https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/movefile-method) method of the [`FileSystemObject`](https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/filesystemobject-object). Since the `MoveFile` method does a synchronous operation and the given source file is very large, the script of the HTA blocks at `fso.MoveFile( ... )` command for a long time. This will unfortunately result in the HTA window and its whole user interface freezing up (=hanging) until the file movement operation is completed. Thus, the end-user will be probably unhappy with your app.
 
@@ -384,3 +352,35 @@ When **the worker thread** is created, it is passed **an object parameter** that
 When the worker thread starts to run, it first does some validation. So it checks the existance of the input image file that was specified on the form. If the file does not exist, then the worker thread calls `window.alert` to display an error message and then exits.
 
 Next, the worker thread starts utilizing the **WIA Automation**. It loads the input image file, and modifies its pixels to make them grayscale. Then the thread calls `window.prompt` to open a dialog box to ask the user to enter the path of the output image file. Finally, it stores the output image file to disk (in PNG format).
+
+# Example app
+Run the app by double-clicking the file 'multithreading example.hta'. The app has two tabs: **Search** and **Mix Images**.
+
+## Search tab
+In the Search tab, you can search your file system. In the **Location** field, enter the path of the directory in which the app will look for files. In the **File name** field, enter the name of the file you wish to find. Note that you can also place *wildcards* in the file name.
+
+Finally, click the **Search** button to start the search. Technically, this will result in creation of a thread that performs the search operation. After the search is started, you can stop it by simply clicking the **Stop** button. Technically, this will result in the search thread being killed.
+
+The results of the search will be displayed in the light-yellow box below the buttons. Clicking on each result will make the app open the containing folder of the file in a File Explorer window. You can also clear the list of results by clicking the **Clear Results** button next to the Search button.
+
+Clicking **Read Results** button will make the app create a thread to read the search results aloud via the system's text-to-speech engine. After clicking it, you can stop the playback by clicking it again.
+
+## Mix Images tab
+**Note:** To use this tab, you need to run the app on **Windows Vista or later**.
+
+In the Mix Images tab, the app takes two images as input and mixes them to produce a couple of composite images each of which contains the input images overlaid with each other. So it's a *magical operation*! Try it to see what it really means.
+
+In the **Input** section, click the **Browse** buttons to select the first and second input image files that are to be mixed.  
+In the **Output** section, click the **Browse** button to select the directory in which the two composite images will be saved. The name of these two composite image files will be in the following format by default:  
+*n*.bmp  
+where n is an automatically generated number. For example, firstly, the name '1.bmp' is chosen by the app. But if the file '1.bmp' already exists, the name '2.bmp' is chosen; and if it again exists, '3.bmp' is chosen, and so on.
+
+Now start mixing images by clicking the **Mix!** button. Watch the progress bar until the operation is completed, and the following message pops up:
+
+> The images were successfully mixed!
+
+After the mix operation, these two composite image files will be approximately identical to each other. But wait - do not assume that the second file is useless! You are able to *reconstruct* the original input image files from these composite image files if both of them are present. To do so, you need to start a new mix operation with the app by specifying the same composite images as input images. Then the app will create output images that are identical to the original images!
+
+Then what is the **Unit size** field in the Settings section? It's hard to explain, but we recommend that you leave it be the default (1). Because the higher its value, the lower the quality of the composite images.
+
+If the **Preserve image transparency** option in the Settings section is checked, then if any of the pixels in the input images are transparent, the corresponding pixels in the composite images will be also transparent. Otherwise, the app will generate all the pixels in the composite images with an alpha value of 255, so that the entire composite images will be opaque.
