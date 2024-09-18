@@ -38,7 +38,7 @@ If the **Preserve image transparency** option in the Settings section is checked
 
 The **Omegathread library** has been developed to solve that problem by providing multithreading capabilities for HTAs. With the aid of this library, in the preceding example, clicking the form's submit button will cause the program to create a thread which performs the file movement operation, and when the operation is completed, the thread will display a message to the user, indicating that the file has been successfully moved. This way the user interface won't freeze up, and the end-user won't be frustrated.
 
-**Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads are not really threads, but are actually *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
+**Omegathread.htc** is an HTML component (HTC file) that enables the creation of ***virtual threads*** in HTML Applications (HTAs). The term "virtual" means that these threads shall not be realized in OS-level threads, although they are hypothetically called threads. In fact, they are just *wscript.exe* processes that communicate with the HTA process (mshta.exe) via COM. Moreover, the code that is executed by these threads is originally stored within the HTA file. And as soon as the thread starts, the code is dynamically transfered to the 'wscript.exe' process for execution.
 
 ## Basic usage
 To use the component in an HTA, first, copy the two files "omegathread.htc" and "thread_host.wsf" (other ones are not required) from this repository to the directory where your HTA is stored. Then follow these steps:
@@ -186,7 +186,7 @@ instead of
     // The actual code
     </t:thread>
 
-This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *omegathread.htc* component smartly detects and removes the extra `<script>` tags before passing the code to the script engine for execution.
+This way, the JScript code within `<t:thread>` element renders correctly in text editors, and the *omegathread.htc* component smartly detects and strips the extra `<script>` tags before passing the code to the script engine for execution.
 
 ## Storing the thread code in external files
 Instead of placing the thread code directly within the `<t:thread>` element, you can use the `src` attribute of the thread template element to instruct the system to load the specified file and obtain the thread code. It's so simple; consider we have a script file named "HelloWorld.vbs" with the code below:
